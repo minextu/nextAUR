@@ -1,0 +1,35 @@
+{
+  "name": "nextaur",
+  "version": "0.0.1",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "pretest": "npm run lint",
+    "test": "mocha test --recursive",
+    "lint": "eslint *.js server/**/*.js client/**/*.js",
+    "build:templates": "cp client/templates/*.html public/",
+    "build:doc": "apidoc -i server/ -o public/apidoc/",
+    "prebuild": "rimraf public/apidoc public/*.js public/*.css public/*.html",
+    "build": "npm run build:doc && npm run build:templates && lessc client/templates/*.less | uglifycss > public/style.css && browserify ./client/app.js | uglifyjs -mc > ./public/bundle.js",
+    "debug": "npm run lint && npm run build:doc && npm run build:templates && lessc client/templates/*.less public/style.css && browserify ./client/app.js -o ./public/bundle.js",
+    "start": "node server.js",
+    "nodemon": "nodemon -e js,html,less server.js"
+  },
+  "author": "Jan Houben",
+  "license": "GPL-2.0",
+  "devDependencies": {
+    "browserify": "^14.4.0",
+    "eslint": "^4.1.1",
+    "less": "^2.7.2",
+    "mocha": "^3.4.2",
+    "nodemon": "^1.11.0",
+    "rimraf": "^2.6.1",
+    "uglify-es": "^3.0.24",
+    "uglifycss": "0.0.27",
+    "unit.js": "^2.0.0"
+  },
+  "dependencies": {
+    "express": "^4.15.3",
+    "request-promise": "^4.2.1"
+  }
+}
