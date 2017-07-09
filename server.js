@@ -1,5 +1,10 @@
-var http = require("http");
-var express = require("express");
+const http = require("http");
+const express = require("express");
+const Config = require("./server/config");
+
+// get config
+let config = new Config();
+let port = config.get('port');
 
 // catch port in use error
 process.on("uncaughtException", function (err) {
@@ -11,12 +16,6 @@ process.on("uncaughtException", function (err) {
 	}
 	process.exit(1);
 });
-
-// get server port of arguments list
-let port = process.argv[2];
-if (port === undefined) {
-	port = 8080;
-}
 
 // set static content
 var app = express();

@@ -2,3 +2,6 @@ node_modules/
 public/*
 .directory
 .nyc_output/
+coverage/
+config/config.json
+config/config.unitTest.json

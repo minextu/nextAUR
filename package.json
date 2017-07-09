@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "express": "^4.15.3",
+    "nconf": "^0.8.4",
     "request-promise": "^4.2.1"
   }
 }
