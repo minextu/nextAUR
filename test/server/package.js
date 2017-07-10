@@ -1,9 +1,8 @@
 var test = require("unit.js");
-var Pkg = require("../../server/pkg");
+var Package = require("../../server/package");
 
 describe("#Pkg", () => {
-
-	it("can load metadata", async() => {
+	it("can load metadata", async () => {
 		// expected values
 		let serverPkgId = 425670;
 		let serverPkgName = "pacaur";
@@ -12,8 +11,7 @@ describe("#Pkg", () => {
 		let serverPkgDepends = ["cower", "expac", "sudo", "git"];
 		let serverPkgMakeDepends = ["perl"];
 
-
-		let pkg = new Pkg();
+		let pkg = new Package();
 
 		test
 			.object(pkg);
@@ -53,7 +51,7 @@ describe("#Pkg", () => {
 
 	it("will fail on unkown pkg", done => {
 		let serverPkgName = "pkg_that_does_not_exist_test";
-		let pkg = new Pkg();
+		let pkg = new Package();
 
 		pkg.fetchName(serverPkgName).then(res => {
 			done(new Error("Pkg should not exist!"));

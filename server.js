@@ -1,6 +1,7 @@
 /* server entry point */
 const http = require("http");
 const express = require("express");
+const bodyParser = require('body-parser');
 const Config = require(__dirname + '/server/config');
 
 // get config
@@ -22,8 +23,11 @@ process.on("uncaughtException", function (err) {
 var app = express();
 app.use(express.static("public"));
 
+// enable support for post requests
+app.use(bodyParser.urlencoded({ extended: true }));
+
 // set routes
-var routes = require("./server/routes");
+var routes = require("./server/api/routes");
 routes.set(app);
 
 // create and start server

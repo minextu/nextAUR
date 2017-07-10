@@ -68,7 +68,7 @@
 		"new-cap": "error",
 		"new-parens": "error",
 		"no-mixed-operators": "error",
-		"no-mixed-spaces-and-tabs": "error",
+		"no-mixed-spaces-and-tabs": "warn",
 		"no-multiple-empty-lines": ["error", { "max": 1, "maxEOF": 1, "maxBOF": 0 }],
 		"no-new-object": "error",
 		"no-spaced-func": "error",

@@ -6,7 +6,7 @@
   "scripts": {
     "pretest": "npm run lint",
     "test": "nyc mocha test --recursive",
-    "lint": "eslint *.js nac server/**/*.js client/**/*.js",
+    "lint": "eslint *.js nac migrations/*.js server/**/*.js client/**/*.js",
     "build:templates": "cp client/templates/*.html public/",
     "build:doc": "apidoc -i server/ -o public/apidoc/",
     "prebuild": "rimraf public/apidoc public/*.js public/*.css public/*.html",
@@ -19,6 +19,7 @@
   "license": "GPL-2.0",
   "devDependencies": {
     "apidoc": "^0.17.6",
+    "body-parser": "^1.17.2",
     "browserify": "^14.4.0",
     "eslint": "^4.1.1",
     "less": "^2.7.2",
@@ -34,7 +35,7 @@
     "columnify": "^1.5.4",
     "commander": "^2.11.0",
     "express": "^4.15.3",
-    "mysql": "^2.13.0",
+    "mysql2": "^1.3.5",
     "nconf": "^0.8.4",
     "request-promise": "^4.2.1",
     "umzug": "^2.0.1"

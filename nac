@@ -11,6 +11,8 @@ const Database = require('./server/database');
 let database = new Database();
 
 const dummyMigration = `module.exports = {
+
+  // upgrade
 	up: database => {
 		return new Promise((resolve, reject) => {
 			// Describe how to achieve the task.
@@ -18,6 +20,7 @@ const dummyMigration = `module.exports = {
 		});
 	},
 
+  // downgrade
 	down: database => {
 		return new Promise((resolve, reject) => {
 			// Describe how to revert the task.
@@ -138,6 +141,8 @@ program
 		catch (err) {
 			console.log(`Error: ${err.message}`);
 		}
+
+		database.close();
 	});
 
 program
@@ -155,6 +160,8 @@ program
 		catch (err) {
 			console.log(`Error: ${err.message}`);
 		}
+
+		database.close();
 	});
 
 program
@@ -163,5 +170,3 @@ program
 if (!executed) {
 	program.help();
 }
-
-database.close();

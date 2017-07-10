@@ -1,9 +1,12 @@
-var rp = require('request-promise');
+const rp = require('request-promise');
+const Database = require('./database');
 
 const apiUrl = "https://aur.archlinux.org/rpc/";
 
-class Pkg {
-	constructor() {}
+class Package {
+	constructor() {
+		this.database = new Database();
+	}
 
 	getRemoteId() {
 		return this.remoteId;
@@ -66,5 +69,16 @@ class Pkg {
 			return this;
 		});
 	}
+
+	async save() {
+		if (this.name === undefined) {
+			throw new Error("Package has to fetched first!");
+		}
+
+		return this.database.query(`
+			INSERT INTO packages (remoteId, name, description, version, downloadUrl)
+				VALUES (?, ?, ?, ?, ?)
+			`, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
+	}
 }
-module.exports = Pkg;
+module.exports = Package;
