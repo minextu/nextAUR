@@ -15,7 +15,7 @@ class Migrator {
 		return this.umzug.pending();
 	}
 
-	async getExecuted() {
+	getExecuted() {
 		return this.umzug.executed();
 	}
 
