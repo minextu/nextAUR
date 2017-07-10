@@ -4,26 +4,28 @@
 
 const fs = require('fs');
 const program = require('commander');
-const columnify = require('columnify')
+const columnify = require('columnify');
 const Migrator = require('./server/migrator');
+const Database = require('./server/database');
 
-const dummyMigration =
-	`module.exports = {
-	up: () => {
+let database = new Database();
+
+const dummyMigration = `module.exports = {
+	up: database => {
 		return new Promise((resolve, reject) => {
 			// Describe how to achieve the task.
 			// Call resolve/reject at some point.
 		});
 	},
 
-	down: () => {
+	down: database => {
 		return new Promise((resolve, reject) => {
 			// Describe how to revert the task.
 			// Call resolve/reject at some point.
 		});
 	}
 };
-`
+`;
 
 let executed = false;
 
@@ -38,10 +40,9 @@ program
 		let dateTime = new Date().toISOString().replace(/T/, '').replace(/\..+/, '').replace(/-/g, '').replace(/:[^:]+$/, '').replace(/:/g, '');
 		let filename = `migrations/${dateTime}-${name}.js`;
 
-
 		try {
 			// save dummy migration
-			fs.writeFileSync(filename, dummyMigration, err => {});
+			fs.writeFileSync(filename, dummyMigration);
 			console.log(`Successfully created '${filename}'`);
 		}
 		catch (err) {
@@ -53,59 +54,59 @@ program
 	.command('status')
 	.alias('s')
 	.description('Show current migration status')
-	.action(async() => {
+	.action(async () => {
 		executed = true;
 
-		console.log(`STATUS`)
-		let migrator = new Migrator();
+		console.log(`STATUS`);
+		let migrator = new Migrator(database);
 		let pending = await migrator.getPending();
 
 		if (pending.length === 0) {
-			console.log(`Everything up to date.`)
+			console.log(`Everything up to date.`);
 		}
 		else {
 			console.log(`${pending.length} pending migrations. Please run "./nac upgrade".`);
 		}
 	});
 
-let optionAll = false;
+let optionExecuted = false;
 let optionPending = false;
 program
 	.command('list')
 	.alias('l')
-	.description('List executed migrations')
-	.option('-a, --all', 'List all migrations', () => optionAll = true)
-	.option('-p, --pending', 'List pending migrations', () => optionPending = true)
-	.action(async() => {
+	.description('List all migrations')
+	.option('-e, --executed', 'Only list executed migrations', () => { optionExecuted = true; })
+	.option('-p, --pending', 'Only list pending migrations', () => { optionPending = true; })
+	.action(async () => {
 		executed = true;
 
-		let migrator = new Migrator();
+		let migrator = new Migrator(database);
 		let pendingMigrations = await migrator.getPending();
 		let executedMigrations = await migrator.getExecuted();
 
 		let migrations;
-		if (optionAll) {
-			console.log("All Migrations:")
+		if (optionExecuted) {
+			console.log("Executed Migrations:");
+			migrations = executedMigrations;
+		}
+		else if (optionPending) {
+			console.log("Pending Migrations:");
+			migrations = pendingMigrations;
+		}
+		else {
+			console.log("All Migrations:");
 
 			migrations = pendingMigrations.concat(executedMigrations);
 			migrations.sort((a, b) => {
 				return parseInt(a.file) - parseInt(b.file);
-			})
-		}
-		else if (optionPending) {
-			console.log("Pending Migrations:")
-			migrations = pendingMigrations;
-		}
-		else {
-			console.log("Executed Migrations:")
-			migrations = executedMigrations;
+			});
 		}
 
 		let data = [];
 		migrations.forEach(migration => {
 			// check if migration was already executed
 			let status = pendingMigrations.some(pendingMigration => {
-				return pendingMigration["file"] === migration.file;
+				return pendingMigration.file === migration.file;
 			}) ? "Pending" : "Executed";
 
 			data[data.length] = {
@@ -114,17 +115,22 @@ program
 			};
 		});
 
-		console.log(columnify(data));
+		if (migrations.length > 0) {
+		  console.log(columnify(data));
+		}
+		else {
+			console.log('No Migrations found');
+		}
 	});
 
 program
 	.command('upgrade')
 	.alias('u')
 	.description('Apply all pending migrations')
-	.action(async() => {
+	.action(async () => {
 		executed = true;
 
-		let migrator = new Migrator();
+		let migrator = new Migrator(database);
 		try {
 			let status = await migrator.upgrade();
 			console.log(`Successfully upgraded ${status.length} Migrations.`);
@@ -138,10 +144,10 @@ program
 	.command('downgrade <file>')
 	.alias('d')
 	.description('Downgrade the given migration')
-	.action(async(file) => {
+	.action(async (file) => {
 		executed = true;
 
-		let migrator = new Migrator();
+		let migrator = new Migrator(database);
 		try {
 			let status = await migrator.downgrade(file);
 			console.log(`Successfully downgraded "${file}".`);
@@ -155,5 +161,7 @@ program
 	.parse(process.argv);
 
 if (!executed) {
-	program.help()
+	program.help();
 }
+
+database.close();

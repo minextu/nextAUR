@@ -1,8 +1,7 @@
 /* server entry point */
-
 const http = require("http");
 const express = require("express");
-const Config = require("./server/config");
+const Config = require(__dirname + '/server/config');
 
 // get config
 let config = new Config();

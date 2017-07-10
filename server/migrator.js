@@ -1,4 +1,4 @@
-const options = {
+let options = {
 	storageOptions: {
 		path: './config/migrations.json',
 	},
@@ -6,7 +6,16 @@ const options = {
 };
 
 class Migrator {
-	constructor() {
+	constructor(database) {
+		if (!database) {
+			throw new Error("database was not given!");
+		}
+
+		this.database = database;
+		options.migrations = {
+			params: [database]
+		};
+
 		let Umzug = require('umzug');
 		this.umzug = new Umzug(options);
 	}

@@ -21,9 +21,7 @@ before(function () {
 });
 
 describe("#Config", () => {
-
-
-	it("can create new file", async() => {
+	it("can create new file", async () => {
 		await createTestConfig();
 		// check if file was created
 		fs.openSync(testConfig, 'r', function (err, fd) {
@@ -31,7 +29,7 @@ describe("#Config", () => {
 		});
 	});
 
-	it("can load an existing file", async() => {
+	it("can load an existing file", async () => {
 		await createTestConfig();
 		let config;
 
@@ -52,6 +50,6 @@ describe("#Config", () => {
 				done(new Error("Config should not get saved!"));
 			}).catch(err => {
 				done();
-			})
+			});
 	});
 });

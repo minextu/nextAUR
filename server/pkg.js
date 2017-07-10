@@ -64,8 +64,6 @@ class Pkg {
 			this.makeDepends = info.MakeDepends;
 
 			return this;
-		}).catch(e => {
-			throw e;
 		});
 	}
 }

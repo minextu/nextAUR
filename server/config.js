@@ -4,7 +4,7 @@ const configDefaults = {
 };
 
 class Config {
-	constructor(file = './config/config.jsson') {
+	constructor(file = __dirname + '/../config/config.json') {
 		this.file = file;
 
 		// init nconf
