@@ -31,8 +31,12 @@
     "unit.js": "^2.0.0"
   },
   "dependencies": {
+    "columnify": "^1.5.4",
+    "commander": "^2.11.0",
     "express": "^4.15.3",
+    "mysql": "^2.13.0",
     "nconf": "^0.8.4",
-    "request-promise": "^4.2.1"
+    "request-promise": "^4.2.1",
+    "umzug": "^2.0.1"
   }
 }

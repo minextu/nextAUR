@@ -1,3 +1,5 @@
+/* server entry point */
+
 const http = require("http");
 const express = require("express");
 const Config = require("./server/config");

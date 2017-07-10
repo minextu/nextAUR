@@ -5,3 +5,4 @@ public/*
 coverage/
 config/config.json
 config/config.unitTest.json
+config/migrations.json
