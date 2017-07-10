@@ -116,7 +116,7 @@ program
 		});
 
 		if (migrations.length > 0) {
-		  console.log(columnify(data));
+			console.log(columnify(data));
 		}
 		else {
 			console.log('No Migrations found');
@@ -149,7 +149,7 @@ program
 
 		let migrator = new Migrator(database);
 		try {
-			let status = await migrator.downgrade(file);
+			await migrator.downgrade(file);
 			console.log(`Successfully downgraded "${file}".`);
 		}
 		catch (err) {
