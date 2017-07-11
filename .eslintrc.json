@@ -62,7 +62,7 @@
 		"comma-spacing": "error",
 		"comma-style": "error",
 		"eol-last": ["error", "windows"],
-		"indent": ["error", "tab", { "SwitchCase": 1 }],
+		"indent": ["error", 2],
 		"key-spacing": "error",
 		"keyword-spacing": "error",
 		"new-cap": "error",

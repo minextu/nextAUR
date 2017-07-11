@@ -1,8 +1,8 @@
 module.exports = {
 
-	// upgrade
-	up: database => {
-		return database.query(`
+  // upgrade
+  up: database => {
+    return database.query(`
 			CREATE TABLE packages
 			(
 				id INT(255) UNSIGNED NULL AUTO_INCREMENT ,
@@ -13,12 +13,12 @@ module.exports = {
 				downloadUrl VARCHAR(1000) NULL ,
 				PRIMARY KEY (id)
 			)`);
-	},
+  },
 
-	// downgrade
-	down: database => {
-		return database.query(`
+  // downgrade
+  down: database => {
+    return database.query(`
 			DROP TABLE packages
 			`);
-	}
+  }
 };

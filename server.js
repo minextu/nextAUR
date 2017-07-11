@@ -10,13 +10,13 @@ let port = config.get('port');
 
 // catch port in use error
 process.on("uncaughtException", function (err) {
-	if (err.errno === "EADDRINUSE") {
-		console.log("Port is in use!");
-	}
-	else {
-		console.log(err);
-	}
-	process.exit(1);
+  if (err.errno === "EADDRINUSE") {
+    console.log("Port is in use!");
+  }
+  else {
+    console.log(err);
+  }
+  process.exit(1);
 });
 
 // set static content
@@ -33,5 +33,5 @@ routes.set(app);
 // create and start server
 var server = http.createServer(app);
 server.listen(port, function () {
-	console.log("listening on port " + port + "!");
+  console.log("listening on port " + port + "!");
 });

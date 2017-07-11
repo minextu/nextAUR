@@ -1,40 +1,40 @@
 let options = {
-	storageOptions: {
-		path: './config/migrations.json',
-	},
-	logging: (log) => console.log(log)
+  storageOptions: {
+    path: './config/migrations.json',
+  },
+  logging: (log) => console.log(log)
 };
 
 class Migrator {
-	constructor(database) {
-		if (!database) {
-			throw new Error("database was not given!");
-		}
+  constructor(database) {
+    if (!database) {
+      throw new Error("database was not given!");
+    }
 
-		this.database = database;
-		options.migrations = {
-			params: [database]
-		};
+    this.database = database;
+    options.migrations = {
+      params: [database]
+    };
 
-		let Umzug = require('umzug');
-		this.umzug = new Umzug(options);
-	}
+    let Umzug = require('umzug');
+    this.umzug = new Umzug(options);
+  }
 
-	getPending() {
-		return this.umzug.pending();
-	}
+  getPending() {
+    return this.umzug.pending();
+  }
 
-	getExecuted() {
-		return this.umzug.executed();
-	}
+  getExecuted() {
+    return this.umzug.executed();
+  }
 
-	upgrade() {
-		return this.umzug.up();
-	}
+  upgrade() {
+    return this.umzug.up();
+  }
 
-	downgrade(file) {
-		return this.umzug.down(file);
-	}
+  downgrade(file) {
+    return this.umzug.down(file);
+  }
 }
 
 module.exports = Migrator;
