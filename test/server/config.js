@@ -10,11 +10,8 @@ function createTestConfig() {
 }
 
 before(function () {
-  console.log("run!!");
   fs.existsSync(testConfig, exist => {
-    console.log("got respsone!");
     if (exists) {
-      console.log("delete!!");
       fs.unlinkSync(testConfig);
     }
   });
