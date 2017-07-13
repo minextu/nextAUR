@@ -2,6 +2,26 @@ const to = require('await-to-js').default;
 
 let err;
 
+/**
+ * Set appropriate response code and error text
+ * @param  {Error} err Error object
+ * @return {Array}     Answer Object
+ */
+function handleError(err, res) {
+  let answer = {};
+
+  if (err.name === "NotFound") { res.status(404); }
+  else if (err.name === "Exists") { res.status(409); }
+  else {
+    console.error(err);
+    res.status(500);
+  }
+  answer.error = err.name;
+  answer.errorText = err.message;
+
+  res.send(answer);
+}
+
 exports.set = function setRoutes(app) {
   /**
 	 * @api        {post} /package/add Add Package
@@ -14,6 +34,7 @@ exports.set = function setRoutes(app) {
    * @apiSuccess {bool} success  Status
    *
 	 * @apiError  NotFound       Package couldn't be found
+	 * @apiError  Exists         Package has already been added
 	 **/
   app.post("/api/v1/package/add", async (req, res) => {
     let answer = {};
@@ -27,26 +48,20 @@ exports.set = function setRoutes(app) {
     // fetch the package by name
     [err] = await to(pkg.fetchName(name));
     if (err) {
-      res.status(404);
-      answer.error = "NotFound";
+      handleError(err, res);
+      return;
     }
 
     // save the package
-    if (!err) {
-      await pkg.save()
-        .then(() => {
-          answer.success = true;
-          return;
-        })
-        .catch(err => {
-          console.error(err);
-          res.status(500);
-          answer.error = "UnknownError";
-          answer.errorText = err.message;
-        });
-    }
-
-    res.send(answer);
+    await pkg.save()
+      .then(() => {
+        answer.success = true;
+        return;
+      })
+      .catch(err => {
+        handleError(err, res);
+        return;
+      });
   });
 
   /**
@@ -73,18 +88,16 @@ exports.set = function setRoutes(app) {
     // load package by name
     [err] = await to(pkg.loadName(name));
     if (err) {
-      res.status(404);
-      answer.error = "NotFound";
+      handleError(err, res);
+      return;
     }
 
-    if (!err) {
-      answer.success = true;
-
-      // save the package
-      pkg.build().catch(err => {
-        console.error(err);
-      });
-    }
+    answer.success = true;
+    // save the package
+    pkg.build().catch(err => {
+      handleError(err, res);
+      return;
+    });
 
     res.send(answer);
   });

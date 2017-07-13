@@ -1,3 +1,4 @@
+const error = require('./error.js');
 const rp = require('request-promise');
 const to = require('await-to-js').default;
 const Database = require('./database');
@@ -8,6 +9,7 @@ const exec = require('child_process').exec;
 const temp = require("temp").track();
 
 const apiUrl = "https://aur.archlinux.org/rpc/";
+
 let err;
 
 class Package {
@@ -56,7 +58,7 @@ class Package {
     `, [name]));
     if (err) { console.error(err); }
     if (packages[0].length === 0) {
-      throw new Error("NotFound");
+      throw new error.NotFound(`pkg '${name}' not found in database`);
     }
 
     // get package depends
@@ -66,6 +68,7 @@ class Package {
     `, [packages[0][0].id]));
     if (err) { console.error(err); }
 
+    // set info
     let info = packages[0][0];
     this.remoteId = info.remoteId;
     this.id = info.id;
@@ -74,39 +77,43 @@ class Package {
     this.version = info.version;
     this.downloadUrl = info.downloadUrl;
 
-    if (depends[0].length !== 0) {
-      this.depends = [];
-      this.makeDepends = [];
+    // set depends and makedepends
+    this.depends = [];
+    this.makeDepends = [];
+    if (depends[0].length === 0) {
+      return;
+    }
 
-      for (let id in depends[0]) {
-        let depend = depends[0][id];
-        if (depend.type === 0) {
-          this.depends[this.depends.length] = depend.name;
-        }
-        else {
-          this.makeDepends[this.makeDepends.length] = depend.name;
-        }
+    // loop through all dependencies
+    for (let id in depends[0]) {
+      let depend = depends[0][id];
+      if (depend.type === 0) {
+        this.depends[this.depends.length] = depend.name;
+      }
+      else {
+        this.makeDepends[this.makeDepends.length] = depend.name;
       }
     }
   }
 
+  /**
+   * Fetch PKG from aur by name
+   * @param  {String} name Package name
+   * @return {Promise}
+   */
   fetchName(name) {
     // set request options
     let options = {
       uri: apiUrl,
       qs: {
-        v: 5,
-        type: "info",
-        arg: [name]
-      },
-      json: true
+        v: 5, type: "info", arg: [name]
+      }, json: true
     };
 
     return rp(options).then(res => {
       // fail if more or less than 1 result was found
       if (res.resultcount !== 1) {
-        let err = `pkg '${name}' not found`;
-        throw new Error(err);
+        throw new error.NotFound(`pkg '${name}' not found`);
       }
       return res;
     }).then(res => {
@@ -124,20 +131,26 @@ class Package {
     });
   }
 
+  /**
+   * Save fetched Package to Database
+   * @return {Promise}
+   */
   async save() {
     if (this.name === undefined) {
       throw new Error("Package has to fetched first!");
     }
 
+    // check if package does already exist in database
     let testPkg = new Package();
     [err] = await to(testPkg.loadName(this.name));
-    if (err) {
-      if (err.message != "NotFound") { throw (err); }
+    if (!err) {
+      throw new error.Exists(`Package '${this.name}' does already exit in Database`);
     }
-    else {
-      throw new Error("Package was already saved!");
+    else if (err && err.name != "NotFound") {
+      throw (err);
     }
 
+    // save package to database
     let result = await this.database.query(`
 			INSERT INTO packages (remoteId, name, description, version, downloadUrl)
 				VALUES (?, ?, ?, ?, ?)
@@ -149,6 +162,13 @@ class Package {
     if (err) { throw err; }
   }
 
+  /**
+   * Save dependencies to database
+   * @param  {Array}  depends   Array of dependencies
+   * @param  {Number}  packageId Id of package
+   * @param  {Number}  type      0 for depends, 1 for makedepns
+   * @return {Promise}
+   */
   async saveDependencies(depends, packageId, type) {
     for (let depend of depends) {
       let dependPkg = new Package();
@@ -160,47 +180,50 @@ class Package {
     }
   }
 
+  /**
+   * Build this package using docker
+   * @return {Promise}
+   */
   async build() {
     if (this.name === undefined) {
       throw new Error("Package has to fetched first!");
     }
 
-    let docker = new Docker();
+    let buildscript = `
+      pacman -Syu --noconfirm
+      pacman -S wget --noconfirm
 
+      # install depends and make depends
+      pacman -S --noconfirm --needed \
+        ${this.depends.join(' ')} ${this.makeDepends.join(' ')}
+
+      useradd -m build
+      su build -s /bin/bash -c "
+        mkdir ~/out
+        cd ~/
+        wget https://aur.archlinux.org${this.downloadUrl}
+        tar -xvf '${this.name}.tar.gz' && cd '${this.name}'
+        makepkg
+        cp *.pkg.tar.xz ~/out/
+      "`;
+
+    let docker = new Docker();
     try {
+      // create docker container
       let container = await docker
         .createContainer({
           Image: 'base/devel',
-          AttachStdin: false,
-          AttachStdout: true,
-          AttachStderr: true,
-          Tty: true,
+          AttachStdin: false, AttachStdout: true, AttachStderr: true, Tty: true,
           Cmd: [
-            '/bin/bash', '-c',
-            `
-              pacman -Syu --noconfirm
-              pacman -S wget --noconfirm
-
-              # install depends and make depends
-              pacman -S --noconfirm --needed \
-                ${this.depends.join(' ')} ${this.makeDepends.join(' ')}
-
-              useradd -m build
-              su build -s /bin/bash -c "
-                mkdir ~/out
-                cd ~/
-                wget https://aur.archlinux.org${this.downloadUrl}
-                tar -xvf '${this.name}.tar.gz' && cd '${this.name}'
-                makepkg
-                cp *.pkg.tar.xz ~/out/
-              "
-            `
+            '/bin/bash', '-c', buildscript
           ],
-          OpenStdin: false,
-          StdinOnce: false
+          OpenStdin: false, StdinOnce: false
         });
 
+        // run container
       await container.start();
+      // show build log in console
+      // TODO: only show when in Debug mode
       console.log('container started');
       let stream = await container.attach({ stream: true, stdout: true, stderr: true });
       stream.pipe(process.stdout);
@@ -231,6 +254,10 @@ class Package {
     }
   }
 
+  /**
+   * Extract the given package created by build
+   * @param  {String} packageArchive Path to package
+   */
   extractPackage(packageArchive) {
     let repo = __dirname + `/../public/test`;
 
@@ -248,9 +275,14 @@ class Package {
           }
         })
       );
-    console.log(`file: ${files}`);
   }
 
+  /**
+   * Adds or updates a package on repo
+   * @param  {String}  file Filename of the package
+   * @param  {String}  repo Name of the repo
+   * @return {Promise}
+   */
   async addToRepo(file, repo) {
     // run repo-add to update repo database
     exec(`
