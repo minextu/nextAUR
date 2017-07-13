@@ -153,9 +153,9 @@ class Package {
 
     // save package to database
     let result = await this.database.query(`
-			INSERT INTO packages (remoteId, name, description, version, downloadUrl)
-				VALUES (?, ?, ?, ?, ?)
-			`, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
+      INSERT INTO packages (remoteId, name, description, version, downloadUrl)
+      VALUES (?, ?, ?, ?, ?)
+    `, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
     // save depends
     [err] = await to(this.saveDependencies(this.depends, result[0].insertId, 0));
     if (err) { throw err; }

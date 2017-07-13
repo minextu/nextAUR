@@ -25,18 +25,18 @@ function handleError(err, res) {
 
 exports.set = function setRoutes(app) {
   /**
-	 * @api        {post} /package/add Add Package
-	 * @apiName    addPkg
-	 * @apiVersion 0.1.0
-	 * @apiGroup   Package
-	 *
-	 * @apiParam {String} name  Package name
-	 *
+   * @api        {post} /package/add Add Package
+   * @apiName    addPkg
+   * @apiVersion 0.1.0
+   * @apiGroup   Package
+   *
+   * @apiParam {String} name  Package name
+   *
    * @apiSuccess {bool} success  Status
    *
-	 * @apiError  NotFound       Package couldn't be found
-	 * @apiError  Exists         Package has already been added
-	 **/
+   * @apiError  NotFound  Package couldn't be found
+   * @apiError  Exists    Package has already been added
+   **/
   app.post("/api/v1/package/add", async (req, res) => {
     let answer = {};
 
@@ -65,18 +65,18 @@ exports.set = function setRoutes(app) {
   });
 
   /**
-	 * @api        {post} /package/build Build a package
-	 * @apiName    buildPkg
-	 * @apiVersion 0.1.0
-	 * @apiGroup   Package
-	 *
-	 * @apiParam {String} name  Package name
-	 *
+   * @api        {post} /package/build Build a package
+   * @apiName    buildPkg
+   * @apiVersion 0.1.0
+   * @apiGroup   Package
+   *
+   * @apiParam {String} name  Package name
+   *
    * @apiSuccess {bool} success  Status
    *
-	 * @apiError  NotFound       Package couldn't be found
-	 * @apiError  Dependency     Not all dependencies are available
-	 **/
+   * @apiError  NotFound    Package couldn't be found
+   * @apiError  Dependency  Not all dependencies are available
+   **/
   app.post("/api/v1/package/build", async (req, res) => {
     let answer = {};
 
