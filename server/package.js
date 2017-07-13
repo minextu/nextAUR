@@ -1,11 +1,14 @@
 const rp = require('request-promise');
+const to = require('await-to-js').default;
 const Database = require('./database');
 const Docker = require('dockerode');
 const fs = require('fs');
 const tar = require('tar-fs');
 const exec = require('child_process').exec;
+const temp = require("temp").track();
 
 const apiUrl = "https://aur.archlinux.org/rpc/";
+let err;
 
 class Package {
   constructor() {
@@ -38,6 +41,30 @@ class Package {
 
   getMakeDepends() {
     return this.makeDepends;
+  }
+
+  /**
+   * Load PKG from database by name
+   * @param  {String} name Package name
+   * @return {Promise}
+   */
+  async loadName(name) {
+    let rows;
+    [err, rows] = await to(this.database.query("SELECT * from packages WHERE name = ?", [name]));
+    if (err) { console.error(err); }
+    if (rows[0].length === 0) {
+      throw new Error("NotFound");
+    }
+
+    let info = rows[0][0];
+    this.remoteId = info.remoteId;
+    this.id = info.id;
+    this.name = info.name;
+    this.description = info.description;
+    this.version = info.version;
+    this.downloadUrl = info.downloadUrl;
+    this.depends = info.depends;
+    this.makeDepends = info.makeDepends;
   }
 
   fetchName(name) {
@@ -77,6 +104,15 @@ class Package {
   async save() {
     if (this.name === undefined) {
       throw new Error("Package has to fetched first!");
+    }
+
+    let testPkg = new Package();
+    [err] = await to(testPkg.loadName(this.name));
+    if (err) {
+      if (err.message != "NotFound") { throw (err); }
+    }
+    else {
+      throw new Error("Package was already saved!");
     }
 
     return this.database.query(`
@@ -128,48 +164,60 @@ class Package {
 
       // wait for container to finish
       await container.wait();
+
       // copy created package
       stream = await container.getArchive({ path: `/home/build/out/.` });
-      let wstream = fs.createWriteStream(__dirname + `/../data/tmp/${this.name}.tar`);
-      stream.on('data', chunk => {
-        wstream.write(chunk);
-      });
+      temp.open(`nextaur_${this.name}`, async (err, info) => {
+        if (err) {
+          throw err;
+        }
+        let wstream = fs.createWriteStream(info.path);
+        stream.on('data', chunk => {
+          wstream.write(chunk);
+        });
 
-      // remove container
-      await container.remove();
-      console.log('container removed');
-      await this.updateRepo();
+        // remove container
+        await container.remove();
+        console.log('container removed');
+
+        this.extractPackage(info.path);
+      });
     }
     catch (err) {
       console.error(err);
     }
   }
 
-  // TODO: unclutter
-  async updateRepo() {
+  extractPackage(packageArchive) {
+    let repo = __dirname + `/../public/test`;
+
     // copy packages to repo
     let files = "";
     fs
-      .createReadStream(__dirname + `/../data/tmp/${this.name}.tar`)
+      .createReadStream(packageArchive)
       .pipe(
-        tar.extract(__dirname + `/../data/repos`, {
+        tar.extract(repo, {
           map: header => {
             if (header.name !== "./") {
-              // run repo-add to update repo database
-              exec(`
-                cd "${__dirname}/../data/repos"
-                repo-add -R test.db.tar.xz ${header.name}
-              `, (error, stdout, stderr) => {
-                if (error) { console.error(error); }
-                if (stderr) { console.error(stderr); }
-                if (stdout) { console.log(stdout); }
-              });
+              this.addToRepo(header.name, repo);
             }
             return header;
           }
         })
       );
     console.log(`file: ${files}`);
+  }
+
+  async addToRepo(file, repo) {
+    // run repo-add to update repo database
+    exec(`
+      cd "${repo}"
+      repo-add -R test.db.tar.xz ${file}
+    `, (error, stdout, stderr) => {
+      if (error) { console.error(error); }
+      if (stderr) { console.error(stderr); }
+      if (stdout) { console.log(stdout); }
+    });
   }
 }
 module.exports = Package;

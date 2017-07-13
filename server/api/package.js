@@ -79,28 +79,22 @@ exports.set = function setRoutes(app) {
       res.status(400);
       answer.error = "MissingValues";
     }
-    // run code, if everything is ok
-    else {
-      await pkg.fetchName(name)
-        .then(() => {
-          // build package, do not wait
-          pkg.build();
-        }, () => {
-          throw new Error("NotFound");
-        })
-        .then(() => {	answer.success = true; })
-        .catch(err => {
-          if (err.message === "NotFound") {
-            res.status(404);
-            answer.error = "NotFound";
-          }
-          else {
-            console.error(err);
-            res.status(500);
-            answer.error = "UnknownError";
-            answer.errorText = err.message;
-          }
-        });
+
+    let err;
+    // load package by name
+    [err] = await to(pkg.loadName(name));
+    if (err) {
+      res.status(404);
+      answer.error = "NotFound";
+    }
+
+    if (!err) {
+      answer.success = true;
+
+      // save the package
+      pkg.build().catch(err => {
+        console.error(err);
+      });
     }
 
     res.send(answer);
