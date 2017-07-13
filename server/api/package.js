@@ -1,3 +1,5 @@
+const to = require('await-to-js').default;
+
 exports.set = function setRoutes(app) {
   /**
 	 * @api        {post} /package/add Add Package
@@ -24,12 +26,65 @@ exports.set = function setRoutes(app) {
       res.status(400);
       answer.error = "MissingValues";
     }
+
+    let err;
+
+    // fetch the package by name
+    [err] = await to(pkg.fetchName(name));
+    if (err) {
+      res.status(404);
+      answer.error = "NotFound";
+    }
+
+    // save the package
+    if (!err) {
+      await pkg.save()
+        .then(() => {
+          answer.success = true;
+          return;
+        })
+        .catch(err => {
+          console.error(err);
+          res.status(500);
+          answer.error = "UnknownError";
+          answer.errorText = err.message;
+        });
+    }
+
+    res.send(answer);
+  });
+
+  /**
+	 * @api        {post} /package/build Build a package
+	 * @apiName    buildPkg
+	 * @apiVersion 0.1.0
+	 * @apiGroup   Package
+	 *
+	 * @apiParam {String} name  Package name
+	 *
+   * @apiSuccess {bool} success  Status
+   *
+	 * @apiError  MissingValues  Package name wasn't transmitted
+	 * @apiError  NotFound       Package couldn't be found
+	 **/
+  app.post("/api/v1/package/build", async (req, res) => {
+    let answer = {};
+
+    const Package = require('../package.js');
+    let pkg = new Package();
+
+    // get parameters and check for errors
+    let name = req.body.name ? req.body.name : null;
+    if (name === null) {
+      res.status(400);
+      answer.error = "MissingValues";
+    }
     // run code, if everything is ok
     else {
       await pkg.fetchName(name)
         .then(() => {
-          // save package to database
-          return pkg.save();
+          // build package, do not wait
+          pkg.build();
         }, () => {
           throw new Error("NotFound");
         })
