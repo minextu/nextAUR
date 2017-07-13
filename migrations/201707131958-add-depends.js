@@ -3,14 +3,12 @@ module.exports = {
   // upgrade
   up: database => {
     return database.query(`
-			CREATE TABLE packages
+			CREATE TABLE depends
 			(
 				id INT(255) UNSIGNED AUTO_INCREMENT ,
-				remoteId INT(255) UNSIGNED NOT NULL ,
-				name VARCHAR(100) NOT NULL ,
-				description VARCHAR(10000) NOT NULL ,
-				version VARCHAR(100) NOT NULL ,
-				downloadUrl VARCHAR(1000) NOT NULL ,
+				name VARCHAR(100) NOT NULL,
+				packageId INT(255) UNSIGNED NOT NULL,
+				type INT(1) UNSIGNED NULL,
 				PRIMARY KEY (id)
 			)`);
   },
@@ -18,7 +16,7 @@ module.exports = {
   // downgrade
   down: database => {
     return database.query(`
-			DROP TABLE packages
+			DROP TABLE depends
 			`);
   }
 };

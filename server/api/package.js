@@ -1,5 +1,7 @@
 const to = require('await-to-js').default;
 
+let err;
+
 exports.set = function setRoutes(app) {
   /**
 	 * @api        {post} /package/add Add Package
@@ -11,7 +13,6 @@ exports.set = function setRoutes(app) {
 	 *
    * @apiSuccess {bool} success  Status
    *
-	 * @apiError  MissingValues  Package name wasn't transmitted
 	 * @apiError  NotFound       Package couldn't be found
 	 **/
   app.post("/api/v1/package/add", async (req, res) => {
@@ -20,14 +21,8 @@ exports.set = function setRoutes(app) {
     const Package = require('../package.js');
     let pkg = new Package();
 
-    // get parameters and check for errors
+    // get parameters
     let name = req.body.name ? req.body.name : null;
-    if (name === null) {
-      res.status(400);
-      answer.error = "MissingValues";
-    }
-
-    let err;
 
     // fetch the package by name
     [err] = await to(pkg.fetchName(name));
@@ -64,7 +59,6 @@ exports.set = function setRoutes(app) {
 	 *
    * @apiSuccess {bool} success  Status
    *
-	 * @apiError  MissingValues  Package name wasn't transmitted
 	 * @apiError  NotFound       Package couldn't be found
 	 **/
   app.post("/api/v1/package/build", async (req, res) => {
@@ -73,14 +67,9 @@ exports.set = function setRoutes(app) {
     const Package = require('../package.js');
     let pkg = new Package();
 
-    // get parameters and check for errors
+    // get parameters
     let name = req.body.name ? req.body.name : null;
-    if (name === null) {
-      res.status(400);
-      answer.error = "MissingValues";
-    }
 
-    let err;
     // load package by name
     [err] = await to(pkg.loadName(name));
     if (err) {

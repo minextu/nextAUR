@@ -49,22 +49,45 @@ class Package {
    * @return {Promise}
    */
   async loadName(name) {
-    let rows;
-    [err, rows] = await to(this.database.query("SELECT * from packages WHERE name = ?", [name]));
+    // get package info
+    let packages;
+    [err, packages] = await to(this.database.query(`
+      SELECT * from packages WHERE name = ?
+    `, [name]));
     if (err) { console.error(err); }
-    if (rows[0].length === 0) {
+    if (packages[0].length === 0) {
       throw new Error("NotFound");
     }
 
-    let info = rows[0][0];
+    // get package depends
+    let depends;
+    [err, depends] = await to(this.database.query(`
+      SELECT * from depends WHERE packageId = ?
+    `, [packages[0][0].id]));
+    if (err) { console.error(err); }
+
+    let info = packages[0][0];
     this.remoteId = info.remoteId;
     this.id = info.id;
     this.name = info.name;
     this.description = info.description;
     this.version = info.version;
     this.downloadUrl = info.downloadUrl;
-    this.depends = info.depends;
-    this.makeDepends = info.makeDepends;
+
+    if (depends[0].length !== 0) {
+      this.depends = [];
+      this.makeDepends = [];
+
+      for (let id in depends[0]) {
+        let depend = depends[0][id];
+        if (depend.type === 0) {
+          this.depends[this.depends.length] = depend.name;
+        }
+        else {
+          this.makeDepends[this.makeDepends.length] = depend.name;
+        }
+      }
+    }
   }
 
   fetchName(name) {
@@ -94,8 +117,8 @@ class Package {
       this.description = info.Description;
       this.version = info.Version;
       this.downloadUrl = info.URLPath;
-      this.depends = info.Depends;
-      this.makeDepends = info.MakeDepends;
+      this.depends = info.Depends ? info.Depends : [];
+      this.makeDepends = info.MakeDepends ? info.MakeDepends : [];
 
       return this;
     });
@@ -115,10 +138,26 @@ class Package {
       throw new Error("Package was already saved!");
     }
 
-    return this.database.query(`
+    let result = await this.database.query(`
 			INSERT INTO packages (remoteId, name, description, version, downloadUrl)
 				VALUES (?, ?, ?, ?, ?)
 			`, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
+    // save depends
+    [err] = await to(this.saveDependencies(this.depends, result[0].insertId, 0));
+    if (err) { throw err; }
+    [err] = await to(this.saveDependencies(this.makeDepends, result[0].insertId, 1));
+    if (err) { throw err; }
+  }
+
+  async saveDependencies(depends, packageId, type) {
+    for (let depend of depends) {
+      let dependPkg = new Package();
+
+      await this.database.query(`
+  			INSERT INTO depends (name, packageId, type)
+  				VALUES (?, ?, ?)
+  			`, [depend, packageId, type]);
+    }
   }
 
   async build() {
@@ -141,14 +180,18 @@ class Package {
             `
               pacman -Syu --noconfirm
               pacman -S wget --noconfirm
-              useradd -m build -G wheel
-              echo '%wheel ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+              # install depends and make depends
+              pacman -S --noconfirm --needed \
+                ${this.depends.join(' ')} ${this.makeDepends.join(' ')}
+
+              useradd -m build
               su build -s /bin/bash -c "
                 mkdir ~/out
                 cd ~/
                 wget https://aur.archlinux.org${this.downloadUrl}
                 tar -xvf '${this.name}.tar.gz' && cd '${this.name}'
-                makepkg -s --noconfirm
+                makepkg
                 cp *.pkg.tar.xz ~/out/
               "
             `
