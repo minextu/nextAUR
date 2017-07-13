@@ -8,7 +8,8 @@ const tar = require('tar-fs');
 const exec = require('child_process').exec;
 const temp = require("temp").track();
 
-const apiUrl = "https://aur.archlinux.org/rpc/";
+const aurApiUrl = "https://aur.archlinux.org/rpc/";
+const pacmanApiUrl = "https://www.archlinux.org/packages/search/json/";
 
 let err;
 
@@ -104,7 +105,7 @@ class Package {
   fetchName(name) {
     // set request options
     let options = {
-      uri: apiUrl,
+      uri: aurApiUrl,
       qs: {
         v: 5, type: "info", arg: [name]
       }, json: true
@@ -181,14 +182,83 @@ class Package {
   }
 
   /**
-   * Build this package using docker
+   * Checks if all given dependencies are available
+   * @param  {Array}  depends Array of dependencies
    * @return {Promise}
+   */
+  async checkDependencies(depends) {
+    let status = {
+      packages: [],
+      allAvailable: true
+    };
+
+    for (let index in depends) {
+      // TODO: check version number
+      let depend = depends[index].replace(/>.*/, '').replace(/<.*/, '').replace(/=.*/, '');
+
+      // check if this is an aur package and it is in our database
+      // TODO: check build status
+      let testPkg = new Package();
+      [err] = await to(testPkg.loadName(depend));
+      if (err && err.name !== "NotFound") { throw err; }
+      else if (!err) {
+        status.packages[status.packages.length] = { name: depend, available: true, source: "aur" };
+        continue;
+      }
+
+      // check if this is a pacman package
+      let options = {
+        uri: pacmanApiUrl,
+        qs: {
+          name: depend
+        }, json: true
+      };
+
+      let res = await rp(options);
+      if (res.results.length > 0) {
+        status.packages[status.packages.length] = { name: depend, available: true, source: "pacman" };
+      }
+      // package is not available
+      else {
+        status.packages[status.packages.length] = { name: depend, available: false, source: "none" };
+        status.allAvailable = false;
+      }
+    }
+
+    return status;
+  }
+
+  /**
+   * Check for all prerequisites and build the package
+   * @return {Promise}  Resolve is called before doker is finished
    */
   async build() {
     if (this.name === undefined) {
       throw new Error("Package has to fetched first!");
     }
 
+    // check if all dependencies exist
+    let status = await this.checkDependencies(this.depends.concat(this.makeDepends));
+    if (!status.allAvailable) {
+      // get all packages that are not available
+      let notAvailable = [];
+      for (let index in status.packages) {
+        let depend = status.packages[index];
+        if (!depend.available) { notAvailable[notAvailable.length] = depend.name; }
+      }
+
+      throw new error.Dependency(`Not all dependencies are available (${notAvailable.join()})`);
+    }
+
+    this.buildDocker();
+  }
+
+  /**
+   * Builds a package using docker
+   * @return {Promise}
+   */
+  async buildDocker() {
+    // set buildscript
     let buildscript = `
       pacman -Syu --noconfirm
       pacman -S wget --noconfirm
@@ -220,7 +290,7 @@ class Package {
           OpenStdin: false, StdinOnce: false
         });
 
-        // run container
+      // run container
       await container.start();
       // show build log in console
       // TODO: only show when in Debug mode

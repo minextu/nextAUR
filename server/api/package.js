@@ -12,6 +12,7 @@ function handleError(err, res) {
 
   if (err.name === "NotFound") { res.status(404); }
   else if (err.name === "Exists") { res.status(409); }
+  else if (err.name === "Dependency") { res.status(412); }
   else {
     console.error(err);
     res.status(500);
@@ -53,15 +54,14 @@ exports.set = function setRoutes(app) {
     }
 
     // save the package
-    await pkg.save()
-      .then(() => {
-        answer.success = true;
-        return;
-      })
-      .catch(err => {
-        handleError(err, res);
-        return;
-      });
+    answer.success = true;
+    [err] = await to(pkg.save());
+    if (err) {
+      handleError(err, res);
+      return;
+    }
+
+    res.send(answer);
   });
 
   /**
@@ -75,6 +75,7 @@ exports.set = function setRoutes(app) {
    * @apiSuccess {bool} success  Status
    *
 	 * @apiError  NotFound       Package couldn't be found
+	 * @apiError  Dependency     Not all dependencies are available
 	 **/
   app.post("/api/v1/package/build", async (req, res) => {
     let answer = {};
@@ -93,11 +94,12 @@ exports.set = function setRoutes(app) {
     }
 
     answer.success = true;
-    // save the package
-    pkg.build().catch(err => {
+    // build the package
+    [err] = await to(pkg.build());
+    if (err) {
       handleError(err, res);
       return;
-    });
+    }
 
     res.send(answer);
   });

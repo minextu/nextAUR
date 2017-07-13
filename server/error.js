@@ -9,3 +9,9 @@ module.exports.Exists = class Exists extends Error {
     super(message); this.name = 'Exists';
   }
 };
+
+module.exports.Dependency = class Dependency extends Error {
+  constructor(message) {
+    super(message); this.name = 'Dependency';
+  }
+};
