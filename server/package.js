@@ -157,28 +157,35 @@ class Package {
       VALUES (?, ?, ?, ?, ?)
     `, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
     // save depends
-    [err] = await to(this.saveDependencies(this.depends, result[0].insertId, 0));
+    [err] = await to(this._saveDependencies(this.depends, result[0].insertId, 0));
     if (err) { throw err; }
-    [err] = await to(this.saveDependencies(this.makeDepends, result[0].insertId, 1));
+    [err] = await to(this._saveDependencies(this.makeDepends, result[0].insertId, 1));
     if (err) { throw err; }
   }
 
   /**
-   * Save dependencies to database
-   * @param  {Array}  depends   Array of dependencies
-   * @param  {Number}  packageId Id of package
-   * @param  {Number}  type      0 for depends, 1 for makedepns
-   * @return {Promise}
+   * Check for all prerequisites and build the package
+   * @return {Promise}  Resolve is called before doker is finished
    */
-  async saveDependencies(depends, packageId, type) {
-    for (let depend of depends) {
-      let dependPkg = new Package();
-
-      await this.database.query(`
-  			INSERT INTO depends (name, packageId, type)
-  				VALUES (?, ?, ?)
-  			`, [depend, packageId, type]);
+  async build() {
+    if (this.name === undefined) {
+      throw new Error("Package has to fetched first!");
     }
+
+    // check if all dependencies exist
+    let status = await this.checkDependencies(this.depends.concat(this.makeDepends));
+    if (!status.allAvailable) {
+      // get all packages that are not available
+      let notAvailable = [];
+      for (let index in status.packages) {
+        let depend = status.packages[index];
+        if (!depend.available) { notAvailable[notAvailable.length] = depend.name; }
+      }
+
+      throw new error.Dependency(`Not all dependencies are available (${notAvailable.join()})`);
+    }
+
+    this._buildDocker();
   }
 
   /**
@@ -229,35 +236,28 @@ class Package {
   }
 
   /**
-   * Check for all prerequisites and build the package
-   * @return {Promise}  Resolve is called before doker is finished
+   * Save dependencies to database
+   * @param  {Array}  depends   Array of dependencies
+   * @param  {Number}  packageId Id of package
+   * @param  {Number}  type      0 for depends, 1 for makedepns
+   * @return {Promise}
    */
-  async build() {
-    if (this.name === undefined) {
-      throw new Error("Package has to fetched first!");
+  async _saveDependencies(depends, packageId, type) {
+    for (let depend of depends) {
+      let dependPkg = new Package();
+
+      await this.database.query(`
+  			INSERT INTO depends (name, packageId, type)
+  				VALUES (?, ?, ?)
+  			`, [depend, packageId, type]);
     }
-
-    // check if all dependencies exist
-    let status = await this.checkDependencies(this.depends.concat(this.makeDepends));
-    if (!status.allAvailable) {
-      // get all packages that are not available
-      let notAvailable = [];
-      for (let index in status.packages) {
-        let depend = status.packages[index];
-        if (!depend.available) { notAvailable[notAvailable.length] = depend.name; }
-      }
-
-      throw new error.Dependency(`Not all dependencies are available (${notAvailable.join()})`);
-    }
-
-    this.buildDocker();
   }
 
   /**
    * Builds a package using docker
    * @return {Promise}
    */
-  async buildDocker() {
+  async _buildDocker() {
     // set buildscript
     let buildscript = `
       pacman -Syu --noconfirm
@@ -316,7 +316,7 @@ class Package {
         await container.remove();
         console.log('container removed');
 
-        this.extractPackage(info.path);
+        this._extractPackage(info.path);
       });
     }
     catch (err) {
@@ -328,7 +328,7 @@ class Package {
    * Extract the given package created by build
    * @param  {String} packageArchive Path to package
    */
-  extractPackage(packageArchive) {
+  _extractPackage(packageArchive) {
     let repo = __dirname + `/../public/test`;
 
     // copy packages to repo
@@ -339,7 +339,7 @@ class Package {
         tar.extract(repo, {
           map: header => {
             if (header.name !== "./") {
-              this.addToRepo(header.name, repo);
+              this._addToRepo(header.name, repo);
             }
             return header;
           }
@@ -353,7 +353,7 @@ class Package {
    * @param  {String}  repo Name of the repo
    * @return {Promise}
    */
-  async addToRepo(file, repo) {
+  async _addToRepo(file, repo) {
     // run repo-add to update repo database
     exec(`
       cd "${repo}"
