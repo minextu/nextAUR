@@ -102,7 +102,7 @@ class Package {
    * @param  {String} name Package name
    * @return {Promise}
    */
-  fetchName(name) {
+  async fetchName(name) {
     // set request options
     let options = {
       uri: aurApiUrl,
@@ -254,7 +254,7 @@ class Package {
   }
 
   /**
-   * Builds a package using docker
+   * Builds a package using docker and runs _extractPackage() afterwards
    * @return {Promise}
    */
   async _buildDocker() {
@@ -325,7 +325,7 @@ class Package {
   }
 
   /**
-   * Extract the given package created by build
+   * Extracts a package created by build and calls _addToRepo() for all packages
    * @param  {String} packageArchive Path to package
    */
   _extractPackage(packageArchive) {
