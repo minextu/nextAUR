@@ -2,10 +2,11 @@ const error = require('./error.js');
 const rp = require('request-promise');
 const to = require('await-to-js').default;
 const Database = require('./database');
-const Docker = require('dockerode');
+const Docker = require('./docker');
 const fs = require('fs');
 const tar = require('tar-fs');
 const exec = require('child_process').exec;
+const glob = require("glob");
 const temp = require("temp").track();
 
 const aurApiUrl = "https://aur.archlinux.org/rpc/";
@@ -16,6 +17,9 @@ let err;
 class Package {
   constructor() {
     this.database = new Database();
+
+    this.repo = "test";
+    this.repoPath = __dirname + `/../public/${this.repo}`;
   }
 
   getRemoteId() {
@@ -172,44 +176,76 @@ class Package {
       throw new Error("Package has to fetched first!");
     }
 
-    // check if all dependencies exist
-    let status = await this.checkDependencies(this.depends.concat(this.makeDepends));
-    if (!status.allAvailable) {
-      // get all packages that are not available
-      let notAvailable = [];
-      for (let index in status.packages) {
-        let depend = status.packages[index];
-        if (!depend.available) { notAvailable[notAvailable.length] = depend.name; }
-      }
+    // check if all dependencies exist (recursive)
+    let dependencies = await this.checkPackages(this.depends.concat(this.makeDepends), true, true);
 
-      throw new error.Dependency(`Not all dependencies are available (${notAvailable.join()})`);
+    // create a list of of all aur dependencies packages
+    // TODO: unclutter
+    let aurDependencies = [];
+    for (let index in dependencies.packages) {
+      let depend = dependencies.packages[index];
+
+      if (depend && depend.source === "aur") {
+        [err] = await to(new Promise((resolve, reject) => {
+          glob(`${this.repoPath}/${depend.name}*.pkg.tar.xz`, {}, function (err, files) {
+            if (err) { reject(err); }
+
+            if (files.length === 0) {
+              reject((new Error(`No package file for ${depend.name} found`)));
+              return;
+            }
+
+            // get the last found package (newest version)
+            aurDependencies[aurDependencies.length] = files[files.length - 1].replace(/.*\//, '');
+            resolve();
+          });
+        }));
+        if (err) { throw err; }
+      }
     }
 
-    this._buildDocker();
+    // create a tarball out of all aur dependencies
+    let dependencyStream = tar.pack(this.repoPath, {
+      entries: aurDependencies
+    });
+
+    this._buildDocker(dependencyStream);
   }
 
   /**
-   * Checks if all given dependencies are available
-   * @param  {Array}  depends Array of dependencies
+   * Checks if all given packages are available
+   * @param  {Array}   packages    Array of packages to check
+   * @param  {Boolean} throwError Throw an error, when dependency is not available
+   * @param  {Boolean} recursive  Recursivly check all dependencies
    * @return {Promise}
    */
-  async checkDependencies(depends) {
+  async checkPackages(packages, throwError = false, recursive = false) {
     let status = {
       packages: [],
       allAvailable: true
     };
+    let dependencies = [];
 
-    for (let index in depends) {
+    // stop, if no packages were given
+    if (packages.length == 0) { return status; }
+
+    for (let index in packages) {
+      if (!packages[index]) { break; }
+
       // TODO: check version number
-      let depend = depends[index].replace(/>.*/, '').replace(/<.*/, '').replace(/=.*/, '');
+      let pkg = packages[index].replace(/>.*/, '').replace(/<.*/, '').replace(/=.*/, '');
 
       // check if this is an aur package and it is in our database
       // TODO: check build status
       let testPkg = new Package();
-      [err] = await to(testPkg.loadName(depend));
+      [err] = await to(testPkg.loadName(pkg));
       if (err && err.name !== "NotFound") { throw err; }
       else if (!err) {
-        status.packages[status.packages.length] = { name: depend, available: true, source: "aur" };
+        status.packages[status.packages.length] = { name: pkg, available: true, source: "aur" };
+
+        // add dependencies to dependency list, used for recursive checks
+        dependencies[dependencies.length] = testPkg.dependencies;
+
         continue;
       }
 
@@ -217,19 +253,36 @@ class Package {
       let options = {
         uri: pacmanApiUrl,
         qs: {
-          name: depend
+          name: pkg
         }, json: true
       };
 
       let res = await rp(options);
       if (res.results.length > 0) {
-        status.packages[status.packages.length] = { name: depend, available: true, source: "pacman" };
+        status.packages[status.packages.length] = { name: pkg, available: true, source: "pacman" };
       }
       // package is not available
       else {
-        status.packages[status.packages.length] = { name: depend, available: false, source: "none" };
+        status.packages[status.packages.length] = { name: pkg, available: false, source: "none" };
         status.allAvailable = false;
       }
+    }
+
+    if (throwError && !status.allAvailable) {
+      // get all packages that are not available
+      let notAvailable = [];
+      for (let index in status.packages) {
+        let pkg = status.packages[index];
+        if (!pkg.available) { notAvailable[notAvailable.length] = pkg.name; }
+      }
+
+      throw new error.Dependency(`Not all dependencies are available (${notAvailable.join()})`);
+    }
+
+    if (recursive) {
+      let statusRecursive = this.checkPackages(dependencies, throwError, dependencies);
+      status.packages = status.packages.concat(statusRecursive.packages);
+      status.allAvailable = statusRecursive.allAvailable && status.allAvailable;
     }
 
     return status;
@@ -255,18 +308,28 @@ class Package {
 
   /**
    * Builds a package using docker and runs _extractPackage() afterwards
+   * @param {Stream} dependencyStream  A tar stream containing all dependencies
    * @return {Promise}
    */
-  async _buildDocker() {
+  async _buildDocker(dependencyStream) {
     // set buildscript
-    let buildscript = `
+    let buildScript = `
+      # update system
       pacman -Syu --noconfirm
       pacman -S wget --noconfirm
 
+      # add depend repo
+      cd /srv/http
+      if [ "$(ls -A .)" ]; then
+        repo-add depends.db.tar.xz *
+        echo -e "[depends]\nSigLevel=Never\nServer=file:///srv/http" >> /etc/pacman.conf
+      fi
+
       # install depends and make depends
-      pacman -S --noconfirm --needed \
+      pacman -Sy --noconfirm --needed \
         ${this.depends.join(' ')} ${this.makeDepends.join(' ')}
 
+      # run the build script as unprivileged user
       useradd -m build
       su build -s /bin/bash -c "
         mkdir ~/out
@@ -279,45 +342,46 @@ class Package {
 
     let docker = new Docker();
     try {
-      // create docker container
-      let container = await docker
-        .createContainer({
-          Image: 'base/devel',
-          AttachStdin: false, AttachStdout: true, AttachStderr: true, Tty: true,
-          Cmd: [
-            '/bin/bash', '-c', buildscript
-          ],
-          OpenStdin: false, StdinOnce: false
-        });
+      // create container
+      await docker.create(buildScript);
+
+      // copy dependencies
+      await docker.copyDependencies(dependencyStream);
 
       // run container
-      await container.start();
+      await docker.start();
+      console.log('container started');
+
       // show build log in console
       // TODO: only show when in Debug mode
-      console.log('container started');
-      let stream = await container.attach({ stream: true, stdout: true, stderr: true });
+      let stream = await docker.container.attach({ stream: true, stdout: true, stderr: true });
       stream.pipe(process.stdout);
 
       // wait for container to finish
-      await container.wait();
+      await docker.container.wait();
 
       // copy created package
-      stream = await container.getArchive({ path: `/home/build/out/.` });
-      temp.open(`nextaur_${this.name}`, async (err, info) => {
-        if (err) {
-          throw err;
-        }
-        let wstream = fs.createWriteStream(info.path);
-        stream.on('data', chunk => {
-          wstream.write(chunk);
+      stream = await docker.container.getArchive({ path: `/home/build/out/.` });
+      let archive = await new Promise((resolve, reject) => {
+        temp.open(`nextaur_${this.name}`, async (err, info) => {
+          if (err) {
+            reject(err);
+          }
+
+          let wstream = fs.createWriteStream(info.path);
+          stream.pipe(wstream);
+          wstream.on('finish', () => {
+            return resolve(info.path);
+          });
         });
-
-        // remove container
-        await container.remove();
-        console.log('container removed');
-
-        this._extractPackage(info.path);
       });
+
+      // extract package file
+      this._extractPackage(archive);
+
+      // remove container
+      await docker.container.remove();
+      console.log('container removed');
     }
     catch (err) {
       console.error(err);
@@ -329,17 +393,15 @@ class Package {
    * @param  {String} packageArchive Path to package
    */
   _extractPackage(packageArchive) {
-    let repo = __dirname + `/../public/test`;
-
     // copy packages to repo
     let files = "";
     fs
       .createReadStream(packageArchive)
       .pipe(
-        tar.extract(repo, {
+        tar.extract(this.repoPath, {
           map: header => {
             if (header.name !== "./") {
-              this._addToRepo(header.name, repo);
+              this._addToRepo(header.name, this.repoPath);
             }
             return header;
           }
