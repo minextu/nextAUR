@@ -13,20 +13,20 @@ let database = new Database();
 const dummyMigration = `module.exports = {
 
   // upgrade
-	up: database => {
-		return new Promise((resolve, reject) => {
-			// Describe how to achieve the task.
-			// Call resolve/reject at some point.
-		});
-	},
+  up: database => {
+    return new Promise((resolve, reject) => {
+    // Describe how to achieve the task.
+    // Call resolve/reject at some point.
+    });
+  },
 
   // downgrade
-	down: database => {
-		return new Promise((resolve, reject) => {
-			// Describe how to revert the task.
-			// Call resolve/reject at some point.
-		});
-	}
+  down: database => {
+    return new Promise((resolve, reject) => {
+    // Describe how to revert the task.
+    // Call resolve/reject at some point.
+    });
+  }
 };
 `;
 
