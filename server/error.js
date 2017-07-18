@@ -15,3 +15,9 @@ module.exports.Dependency = class Dependency extends Error {
     super(message); this.name = 'Dependency';
   }
 };
+
+module.exports.InvalidCharacters = class InvalidCharacters extends Error {
+  constructor(message) {
+    super(message); this.name = 'InvalidCharacters';
+  }
+};

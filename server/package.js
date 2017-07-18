@@ -3,6 +3,7 @@ const rp = require('request-promise');
 const to = require('await-to-js').default;
 const Database = require('./database');
 const Docker = require('./docker');
+const Repo = require('./repo');
 const fs = require('fs');
 const tar = require('tar-fs');
 const exec = require('child_process').exec;
@@ -17,9 +18,6 @@ let err;
 class Package {
   constructor() {
     this.database = new Database();
-
-    this.repo = "test";
-    this.repoPath = __dirname + `/../public/${this.repo}`;
   }
 
   getRemoteId() {
@@ -28,6 +26,10 @@ class Package {
 
   getName() {
     return this.name;
+  }
+
+  getId() {
+    return this.id;
   }
 
   getDescription() {
@@ -50,20 +52,29 @@ class Package {
     return this.makeDepends;
   }
 
+  async setRepo(repoId) {
+    this.repo = new Repo();
+    [err] = await to(this.repo.loadId(repoId));
+    if (err) { throw err; }
+
+    this.repoId = repoId;
+  }
+
   /**
-   * Load PKG from database by name
-   * @param  {String} name Package name
+   * Load PKG from database by name and repo id
+   * @param  {String} name    Package name
+   * @param  {String} repoId  Repo id
    * @return {Promise}
    */
-  async loadName(name) {
+  async loadName(name, repoId) {
     // get package info
     let packages;
     [err, packages] = await to(this.database.query(`
-      SELECT * from packages WHERE name = ?
-    `, [name]));
+      SELECT * from packages WHERE name = ? AND repoId = ?
+    `, [name, repoId]));
     if (err) { console.error(err); }
     if (packages[0].length === 0) {
-      throw new error.NotFound(`pkg '${name}' not found in database`);
+      throw new error.NotFound(`pkg '${name}' not found in repo id ${repoId}`);
     }
 
     // get package depends
@@ -81,6 +92,59 @@ class Package {
     this.description = info.description;
     this.version = info.version;
     this.downloadUrl = info.downloadUrl;
+    await this.setRepo(info.repoId);
+
+    // set depends and makedepends
+    this.depends = [];
+    this.makeDepends = [];
+    if (depends[0].length === 0) {
+      return;
+    }
+
+    // loop through all dependencies
+    for (let id in depends[0]) {
+      let depend = depends[0][id];
+      if (depend.type === 0) {
+        this.depends[this.depends.length] = depend.name;
+      }
+      else {
+        this.makeDepends[this.makeDepends.length] = depend.name;
+      }
+    }
+  }
+
+  /**
+   * Load PKG from database by id
+   * @param  {Number} id Package id
+   * @return {Promise}
+   */
+  async loadId(id) {
+    // get package info
+    let packages;
+    [err, packages] = await to(this.database.query(`
+      SELECT * from packages WHERE id = ?
+    `, [id]));
+    if (err) { console.error(err); }
+    if (packages[0].length === 0) {
+      throw new error.NotFound(`pkg with id '${id}' not found in database`);
+    }
+
+    // get package depends
+    let depends;
+    [err, depends] = await to(this.database.query(`
+      SELECT * from depends WHERE packageId = ?
+    `, [packages[0][0].id]));
+    if (err) { console.error(err); }
+
+    // set info
+    let info = packages[0][0];
+    this.remoteId = info.remoteId;
+    this.id = info.id;
+    this.name = info.name;
+    this.description = info.description;
+    this.version = info.version;
+    this.downloadUrl = info.downloadUrl;
+    await this.setRepo(info.repoId);
 
     // set depends and makedepends
     this.depends = [];
@@ -121,7 +185,7 @@ class Package {
         throw new error.NotFound(`pkg '${name}' not found`);
       }
       return res;
-    }).then(res => {
+    }).then(async res => {
       // set info
       let info = res.results[0];
       this.remoteId = info.ID;
@@ -137,29 +201,60 @@ class Package {
   }
 
   /**
+   * Get all available packages in repo
+   * @param {Number} repo Repo id to get packages for
+   * @return {Promise} A list of Repo objects on resolve
+   */
+  async getAll(repo) {
+    let pkgList = [];
+
+    // get repo info
+    let pkgs;
+    [err, pkgs] = await to(this.database.query(`
+      SELECT id from packages WHERE repoId = ?
+    `, [repo]));
+    if (err) { console.error(err); }
+
+    for (let index in pkgs[0]) {
+      let id = pkgs[0][index].id;
+      let pkg = new Package();
+
+      [err] = await to(pkg.loadId(id));
+      if (err) { throw err; }
+
+      pkgList[pkgList.length] = pkg;
+    }
+
+    return pkgList;
+  }
+
+  /**
    * Save fetched Package to Database
    * @return {Promise}
    */
   async save() {
     if (this.name === undefined) {
-      throw new Error("Package has to fetched first!");
+      throw new Error("Package has to fetched first");
+    }
+    if (this.repoId === undefined) {
+      throw new Error("setRepo(repoId) has to called first");
     }
 
     // check if package does already exist in database
     let testPkg = new Package();
-    [err] = await to(testPkg.loadName(this.name));
+    [err] = await to(testPkg.loadName(this.name, this.repoId));
     if (!err) {
-      throw new error.Exists(`Package '${this.name}' does already exit in Database`);
+      throw new error.Exists(`Package '${this.name}' does already exit in repo id ${this.repoId}`);
     }
-    else if (err && err.name != "NotFound") {
+    else if (err && err.name !== "NotFound") {
       throw (err);
     }
 
     // save package to database
     let result = await this.database.query(`
-      INSERT INTO packages (remoteId, name, description, version, downloadUrl)
-      VALUES (?, ?, ?, ?, ?)
-    `, [this.remoteId, this.name, this.description, this.version, this.downloadUrl]);
+      INSERT INTO packages (remoteId, name, description, version, downloadUrl, repoId)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [this.remoteId, this.name, this.description, this.version, this.downloadUrl, this.repoId]);
     // save depends
     [err] = await to(this._saveDependencies(this.depends, result[0].insertId, 0));
     if (err) { throw err; }
@@ -187,7 +282,7 @@ class Package {
 
       if (depend && depend.source === "aur") {
         [err] = await to(new Promise((resolve, reject) => {
-          glob(`${this.repoPath}/${depend.name}*.pkg.tar.xz`, {}, function (err, files) {
+          glob(`${this.repo.getPath()}/${depend.name}*.pkg.tar.xz`, {}, function (err, files) {
             if (err) { reject(err); }
 
             if (files.length === 0) {
@@ -205,7 +300,7 @@ class Package {
     }
 
     // create a tarball out of all aur dependencies
-    let dependencyStream = tar.pack(this.repoPath, {
+    let dependencyStream = tar.pack(this.repo.getPath(), {
       entries: aurDependencies
     });
 
@@ -227,7 +322,7 @@ class Package {
     let dependencies = [];
 
     // stop, if no packages were given
-    if (packages.length == 0) { return status; }
+    if (packages.length === 0) { return status; }
 
     for (let index in packages) {
       if (!packages[index]) { break; }
@@ -238,7 +333,7 @@ class Package {
       // check if this is an aur package and it is in our database
       // TODO: check build status
       let testPkg = new Package();
-      [err] = await to(testPkg.loadName(pkg));
+      [err] = await to(testPkg.loadName(pkg, this.repoId));
       if (err && err.name !== "NotFound") { throw err; }
       else if (!err) {
         status.packages[status.packages.length] = { name: pkg, available: true, source: "aur" };
@@ -297,8 +392,6 @@ class Package {
    */
   async _saveDependencies(depends, packageId, type) {
     for (let depend of depends) {
-      let dependPkg = new Package();
-
       await this.database.query(`
   			INSERT INTO depends (name, packageId, type)
   				VALUES (?, ?, ?)
@@ -394,14 +487,13 @@ class Package {
    */
   _extractPackage(packageArchive) {
     // copy packages to repo
-    let files = "";
     fs
       .createReadStream(packageArchive)
       .pipe(
-        tar.extract(this.repoPath, {
+        tar.extract(this.repo.getPath(), {
           map: header => {
             if (header.name !== "./") {
-              this._addToRepo(header.name, this.repoPath);
+              this._addToRepo(header.name, this.repo.getPath());
             }
             return header;
           }
