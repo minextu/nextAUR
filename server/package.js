@@ -493,7 +493,7 @@ class Package {
         tar.extract(this.repo.getPath(), {
           map: header => {
             if (header.name !== "./") {
-              this._addToRepo(header.name, this.repo.getPath());
+              this._addToRepo(header.name);
             }
             return header;
           }
@@ -504,14 +504,13 @@ class Package {
   /**
    * Adds or updates a package on repo
    * @param  {String}  file Filename of the package
-   * @param  {String}  repo Name of the repo
    * @return {Promise}
    */
-  async _addToRepo(file, repo) {
+  async _addToRepo(file) {
     // run repo-add to update repo database
     exec(`
-      cd "${repo}"
-      repo-add -R test.db.tar.xz ${file}
+      cd "${this.repo.getPath()}"
+      repo-add -R ${this.repo.getName()}.db.tar.xz ${file}
     `, (error, stdout, stderr) => {
       if (error) { console.error(error); }
       if (stderr) { console.error(stderr); }
