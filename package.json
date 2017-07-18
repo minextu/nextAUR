@@ -6,7 +6,7 @@
   "scripts": {
     "pretest": "npm run lint",
     "test": "nyc mocha test --recursive",
-    "lint": "eslint *.js nac migrations/*.js server/**/*.js client/**/*.js",
+    "lint": "eslint *.js nac migrations/* server/* client/*.js",
     "build:templates": "cp client/templates/*.html public/",
     "build:doc": "apidoc -i server/ -o public/apidoc/",
     "prebuild": "rimraf public/apidoc public/*.js public/*.css public/*.html",
