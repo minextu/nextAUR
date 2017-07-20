@@ -1,7 +1,6 @@
 /* server entry point */
 const http = require("http");
 const express = require("express");
-const serveIndex = require('serve-index');
 const bodyParser = require('body-parser');
 const Config = require(__dirname + '/server/config');
 
@@ -23,7 +22,6 @@ process.on("uncaughtException", function (err) {
 // set static content
 var app = express();
 app.use(express.static("public"));
-app.use('/', serveIndex('public', { icons: true }));
 
 // enable support for post requests
 app.use(bodyParser.urlencoded({ extended: true }));
