@@ -9,6 +9,10 @@ class View extends AbstractView {
 
     this.templateValues = { repos: [] };
     this.templateName = "repoList";
+
+    if (typeof location != "undefined") {
+      this.templateValues.origin = location.origin;
+    }
   }
 
   showRepos(repos) {

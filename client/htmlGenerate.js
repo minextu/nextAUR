@@ -6,6 +6,9 @@ const error = require('./error.js');
 let pages = bulk(__dirname, ['pages/**/*.js']).pages;
 
 async function getPresenter(page, server) {
+  let pageComponents = page.split(/\/(.+)/);
+  page = pageComponents[0];
+
   if (pages[page] === undefined) {
     throw new error.NotFound(`Page ${page} not found`);
   }
@@ -22,6 +25,12 @@ async function getPresenter(page, server) {
   view.setPresenter(presenter);
   presenter.setView(view);
   presenter.setModel(model);
+
+  let subpage = pageComponents[1];
+  let validSubPage = await presenter.setSubPage(subpage);
+  if (!validSubPage) {
+    throw new error.NotFound(`Subpage ${subpage} of page ${page} not found`);
+  }
 
   // do not init when html is generated on server
   if (!server) {

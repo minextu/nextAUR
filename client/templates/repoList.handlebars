@@ -3,7 +3,12 @@
 {{/if}}
 
 {{#each repos}}
- <h2><a data-role="ajax" href='/viewRepo/{{id}}'>{{id}}</a>: {{name}}</h2>
+ <h2><a data-role="ajax" href='/packageList/{{id}}'>{{id}}</a>: {{name}}</h2>
+ <p>
+   [{{name}}]<br>
+   SigLevel = Never<br>
+   Server = {{../origin}}/$repo
+ </p>
  {{/each}}
 
 <a data-role="ajax" href='/createRepo'>Create new repository</a>
