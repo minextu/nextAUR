@@ -10,6 +10,10 @@ class Presenter {
   getView() {
     return this.view;
   }
+
+  async init() {
+    return;
+  }
 }
 
 module.exports = Presenter;

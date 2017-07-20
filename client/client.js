@@ -9,16 +9,21 @@ async function getPage(page, replace) {
   document.getElementById("h1").innerHTML = content.presenter.getView().getHeading();
   document.getElementById("content").innerHTML = content.html;
 
+  // init view
+  await content.presenter.getView().init();
+
   if (replace) {
     history.replaceState(page, "", page);
   }
   else {
     history.pushState(page, "", page);
   }
+
+  setLinks(document.getElementById("content"));
 }
 
-function setLinks() {
-  let links = document.querySelectorAll('[data-role=ajax]');
+function setLinks(target) {
+  let links = target.querySelectorAll('[data-role=ajax]');
   for (let i = 0; i < links.length; i++) {
     links[i].addEventListener("click", (e) => {
       let page = links[i].getAttribute('href');
@@ -32,4 +37,10 @@ window.onpopstate = event => {
   getPage(event.state, true);
 };
 
-setLinks();
+setLinks(document);
+
+// reload this page
+getPage(location.pathname, true);
+
+// set getPage() to be global
+global._getPage = getPage;

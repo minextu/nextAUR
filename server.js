@@ -24,9 +24,16 @@ process.on("uncaughtException", function (err) {
 var app = express();
 app.use(express.static("public"));
 
+// enable support for post requests
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// set api routes
+var routes = require("./server/api/routes");
+routes.set(app);
+
 // generate html
 app.get('*', async (req, res) => {
-  clientHtml.get(req.path, false)
+  clientHtml.get(req.path, true)
     .then((html) => { res.send(html); })
     .catch(err => {
       if (err.name === "NotFound") {
@@ -36,13 +43,6 @@ app.get('*', async (req, res) => {
       else { console.error(err); res.send("Server error"); }
     });
 });
-
-// enable support for post requests
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// set routes
-var routes = require("./server/api/routes");
-routes.set(app);
 
 // create and start server
 var server = http.createServer(app);

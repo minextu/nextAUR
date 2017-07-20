@@ -1,1 +1,9 @@
-{{text}}
+{{#if error}}
+  <p>Error: {{error}}</p>
+{{/if}}
+
+{{#each repos}}
+ <h2><a data-role="ajax" href='/viewRepo/{{id}}'>{{id}}</a>: {{name}}</h2>
+ {{/each}}
+
+<a data-role="ajax" href='/createRepo'>Create new repository</a>

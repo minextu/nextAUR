@@ -1,12 +1,22 @@
 const AbstractView = require("../abstractView");
 
 class View extends AbstractView {
-  init() {
-    this.title = "Start";
-    this.heading = "Start";
+  constructor() {
+    super();
 
-    this.templateValues = { text: "Repo:" };
-    this.template = "repoList";
+    this.title = "Repositories";
+    this.heading = "Repositories";
+
+    this.templateValues = { repos: [] };
+    this.templateName = "repoList";
+  }
+
+  showRepos(repos) {
+    this.templateValues.repos = repos;
+  }
+
+  showError(err) {
+    this.templateValues.error = err.message;
   }
 }
 

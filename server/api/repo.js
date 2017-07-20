@@ -24,7 +24,7 @@ function handleError(err, res) {
 
 exports.set = function setRoutes(app) {
   /**
-   * @api        {post} /repo/add Add Repository
+   * @api        {post} /repo/create Create Repository
    * @apiName    addRepo
    * @apiVersion 0.1.0
    * @apiGroup   Repo
@@ -36,7 +36,7 @@ exports.set = function setRoutes(app) {
    * @apiError  Exists             Repo has already been added
    * @apiError  InvalidCharacters  Repo name does contain invalid characters
    **/
-  app.post("/api/v1/repo/add", async (req, res) => {
+  app.post("/api/v1/repo/create", async (req, res) => {
     let answer = {};
 
     const Repo = require('../repo.js');

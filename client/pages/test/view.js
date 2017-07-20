@@ -1,12 +1,14 @@
 const AbstractView = require("../abstractView");
 
 class View extends AbstractView {
-  init() {
+  constructor() {
+    super();
+
     this.title = "Test";
     this.heading = "Test";
 
     this.templateValues = { text: "Test:" };
-    this.template = "test";
+    this.templateName = "test";
   }
 }
 
