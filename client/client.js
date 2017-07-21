@@ -1,16 +1,19 @@
 const html = require('./htmlGenerate');
 
-async function getPage(page, replace) {
+async function getPage(page, replace = false, noHtml = false) {
   console.log(`get Page ${page}`);
 
-  let content = await html.getContent(page);
+  let content = await html.getContent(page, noHtml);
 
-  document.title = content.presenter.getView().getTitle();
-  document.getElementById("h1").innerHTML = content.presenter.getView().getHeading();
-  document.getElementById("content").innerHTML = content.html;
+  if (!noHtml) {
+    document.title = content.presenter.getView().getTitle();
+    document.getElementById("h1").innerHTML = content.presenter.getView().getHeading();
+    document.getElementById("content").innerHTML = content.html;
+  }
 
-  // init view
-  await content.presenter.getView().init();
+  // init events
+  await content.presenter.getView().initEvents();
+  await content.presenter.initEvents();
 
   if (replace) {
     history.replaceState(page, "", page);
@@ -40,7 +43,7 @@ window.onpopstate = event => {
 setLinks(document);
 
 // reload this page
-getPage(location.pathname, true);
+getPage(location.pathname, true, true);
 
 // set getPage() to be global
 global._getPage = getPage;

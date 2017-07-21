@@ -2,8 +2,8 @@ const Handlebars = require('handlebars');
 
 let cached = [];
 
-async function load(name, server = false) {
-  if (!server) {
+async function load(name) {
+  if (process.browser) {
     return loadExternal(name);
   }
   else {

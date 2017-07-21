@@ -28,6 +28,10 @@ class View {
   async init() {
     return;
   }
+
+  async initEvents() {
+    return;
+  }
 }
 
 module.exports = View;

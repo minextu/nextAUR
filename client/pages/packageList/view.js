@@ -27,7 +27,7 @@ class View extends AbstractView {
     document.getElementById(`taskBuild_${id}`).style.display = "none";
   }
 
-  async init() {
+  async initEvents() {
     let buildLinks = document.querySelectorAll('[data-role=build]');
     for (let i = 0; i < buildLinks.length; i++) {
       buildLinks[i].addEventListener("click", (e) => { this.build(e); });

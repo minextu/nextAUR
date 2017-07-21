@@ -33,7 +33,7 @@ routes.set(app);
 
 // generate html
 app.get('*', async (req, res) => {
-  clientHtml.get(req.path, true)
+  clientHtml.get(req.path)
     .then((html) => { res.send(html); })
     .catch(err => {
       if (err.name === "NotFound") {

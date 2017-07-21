@@ -5,7 +5,7 @@ const error = require('./error.js');
 // get all available pages
 let pages = bulk(__dirname, ['pages/**/*.js']).pages;
 
-async function getPresenter(page, server) {
+async function getPresenter(page) {
   let pageComponents = page.split(/\/(.+)/);
   page = pageComponents[0];
 
@@ -32,29 +32,32 @@ async function getPresenter(page, server) {
     throw new error.NotFound(`Subpage ${subpage} of page ${page} not found`);
   }
 
-  // do not init when html is generated on server
-  if (!server) {
-    await presenter.init();
-  }
+  // init
+  await view.init();
+  await presenter.init();
 
   return presenter;
 }
 
-async function getContent(page, server = false) {
+async function getContent(page, noHtml = false) {
   page = parsePage(page);
 
-  let presenter = await getPresenter(page, server);
-  let viewHTML = await presenter.getView().getHtml(server, server);
+  let presenter = await getPresenter(page);
+
+  let viewHTML = "";
+  if (!noHtml) {
+    viewHTML = await presenter.getView().getHtml();
+  }
 
   return { html: viewHTML, presenter: presenter };
 }
 
-async function get(page, server = false) {
+async function get(page) {
   page = parsePage(page);
 
   let [content, pageTemplate] = await Promise.all([
-    getContent(page, server),
-    handlebars.load('index', server)
+    getContent(page),
+    handlebars.load('index')
   ]);
   let presenter = content.presenter;
 

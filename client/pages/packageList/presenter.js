@@ -3,7 +3,7 @@ const AbstractPresenter = require("../abstractPresenter");
 class Presenter extends AbstractPresenter {
   async setSubPage(subpage) {
     if (subpage === undefined) {
-      return true;
+      return false;
     }
     let valid = await this.model.setRepo(subpage);
     return valid;

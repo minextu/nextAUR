@@ -17,11 +17,7 @@ class Model extends AbstractModel {
   }
 
   async _fetch(repo) {
-    let data = new URLSearchParams();
-    data.append('repo', repo);
-
-    return fetch('/api/v1/package/list?' + data.toString())
-      .then(response => response.json())
+    return this.fetch('/api/v1/package/list', 'GET', { repo: repo })
       .then(data => { this.data = data; return data; })
       .catch(err => {
         console.error(err);

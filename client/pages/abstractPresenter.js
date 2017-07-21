@@ -27,6 +27,10 @@ class Presenter {
   async init() {
     return;
   }
+
+  async initEvents() {
+    return;
+  }
 }
 
 module.exports = Presenter;

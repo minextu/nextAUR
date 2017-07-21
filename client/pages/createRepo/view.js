@@ -15,7 +15,7 @@ class View extends AbstractView {
     alert(err.message);
   }
 
-  async init() {
+  async initEvents() {
     this.form = document.forms.namedItem("createRepoForm");
 
     this.form.addEventListener("submit", e => this.submit(e));
