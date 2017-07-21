@@ -43,7 +43,8 @@ window.onpopstate = event => {
 setLinks(document);
 
 // reload this page
-getPage(location.pathname, true, true);
+// TODO: only init page, server should generate complete html
+getPage(location.pathname, true);//, true);
 
 // set getPage() to be global
 global._getPage = getPage;
