@@ -3,6 +3,13 @@ const html = require('./htmlGenerate');
 async function getPage(page, replace = false, noHtml = false) {
   console.log(`get Page ${page}`);
 
+  if (replace) {
+    history.replaceState(page, "", page);
+  }
+  else {
+    history.pushState(page, "", page);
+  }
+
   let content = await html.getContent(page, noHtml);
 
   if (!noHtml) {
@@ -13,13 +20,6 @@ async function getPage(page, replace = false, noHtml = false) {
 
   // init events
   await content.controller.initEvents();
-
-  if (replace) {
-    history.replaceState(page, "", page);
-  }
-  else {
-    history.pushState(page, "", page);
-  }
 
   setLinks(document.getElementById("content"));
 }

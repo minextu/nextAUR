@@ -23,6 +23,7 @@ process.on("uncaughtException", function (err) {
 // set static content
 var app = express();
 app.use(express.static("public"));
+//app.use(function (req, res, next) { setTimeout(next, 1000); });
 
 // enable support for post requests
 app.use(bodyParser.urlencoded({ extended: true }));

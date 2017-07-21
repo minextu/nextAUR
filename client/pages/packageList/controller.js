@@ -19,19 +19,19 @@ class Controller extends AbstractController {
     return valid;
   }
 
-  async initEvents() {
-    let buildLinks = document.querySelectorAll('[data-role=build]');
-    for (let i = 0; i < buildLinks.length; i++) {
-      buildLinks[i].addEventListener("click", (e) => { this.build(e); });
-    }
-  }
-
   async init() {
     let packages = await this.model.getPackages();
     this.templateValues.packages = packages;
 
     let repo = this.model.getRepo();
     this.templateValues.repo = repo;
+  }
+
+  async initEvents() {
+    let buildLinks = document.querySelectorAll('[data-role=build]');
+    for (let i = 0; i < buildLinks.length; i++) {
+      buildLinks[i].addEventListener("click", (e) => { this.build(e); });
+    }
   }
 
   async build(e) {
