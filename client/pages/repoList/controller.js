@@ -1,6 +1,6 @@
-const AbstractView = require("../abstractView");
+const AbstractController = require("../abstractController");
 
-class View extends AbstractView {
+class Controller extends AbstractController {
   constructor() {
     super();
 
@@ -15,8 +15,13 @@ class View extends AbstractView {
     }
   }
 
-  showRepos(repos) {
-    this.templateValues.repos = repos;
+  async init() {
+    return this.model.getRepos()
+      .then(repos => {
+        this.templateValues.repos = repos;
+      }).catch(err => {
+        this.showError(err);
+      });
   }
 
   showError(err) {
@@ -24,4 +29,4 @@ class View extends AbstractView {
   }
 }
 
-module.exports = View;
+module.exports = Controller;

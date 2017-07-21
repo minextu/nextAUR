@@ -1,6 +1,6 @@
 class Model {
-  setPresenter(presenter) {
-    this.presenter = presenter;
+  setController(controller) {
+    this.controller = controller;
   }
 
   async fetch(url, method = 'GET', params = []) {

@@ -1,6 +1,6 @@
-const AbstractView = require("../abstractView");
+const AbstractController = require("../abstractController");
 
-class View extends AbstractView {
+class Controller extends AbstractController {
   constructor() {
     super();
 
@@ -21,12 +21,18 @@ class View extends AbstractView {
     this.form.addEventListener("submit", e => this.submit(e));
   }
 
-  submit(e) {
-    let name = this.form.name.value;
-    this.presenter.submit(name);
-
+  async submit(e) {
     e.preventDefault();
+    let name = this.form.name.value;
+
+    let answer = await this.model.createRepo(name);
+    if (answer.error !== undefined) {
+      this.showError(new Error(answer.errorText));
+    }
+    else {
+      _getPage('repoList');
+    }
   }
 }
 
-module.exports = View;
+module.exports = Controller;

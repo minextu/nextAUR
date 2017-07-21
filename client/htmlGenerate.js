@@ -5,7 +5,7 @@ const error = require('./error.js');
 // get all available pages
 let pages = bulk(__dirname, ['pages/**/*.js']).pages;
 
-async function getPresenter(page) {
+async function getController(page) {
   let pageComponents = page.split(/\/(.+)/);
   page = pageComponents[0];
 
@@ -14,42 +14,37 @@ async function getPresenter(page) {
   }
 
   let Model = pages[page].model;
-  let Presenter = pages[page].presenter;
-  let View = pages[page].view;
+  let Controller = pages[page].controller;
 
   let model = new Model();
-  let presenter = new Presenter();
-  let view = new View();
+  let controller = new Controller();
 
-  model.setPresenter(presenter);
-  view.setPresenter(presenter);
-  presenter.setView(view);
-  presenter.setModel(model);
+  model.setController(controller);
+  controller.setModel(model);
 
   let subpage = pageComponents[1];
-  let validSubPage = await presenter.setSubPage(subpage);
+  let validSubPage = await controller.setSubPage(subpage);
   if (!validSubPage) {
     throw new error.NotFound(`Subpage ${subpage} of page ${page} not found`);
   }
 
   // init
-  await view.init();
-  await presenter.init();
+  await controller.init();
 
-  return presenter;
+  return controller;
 }
 
 async function getContent(page, noHtml = false) {
   page = parsePage(page);
 
-  let presenter = await getPresenter(page);
+  let controller = await getController(page);
 
   let viewHTML = "";
   if (!noHtml) {
-    viewHTML = await presenter.getView().getHtml();
+    viewHTML = await controller.getHtml();
   }
 
-  return { html: viewHTML, presenter: presenter };
+  return { html: viewHTML, controller: controller };
 }
 
 async function get(page) {
@@ -59,11 +54,11 @@ async function get(page) {
     getContent(page),
     handlebars.load('index')
   ]);
-  let presenter = content.presenter;
+  let controller = content.controller;
 
   let pageHTML = pageTemplate({
-    title: presenter.getView().getTitle(),
-    h1: presenter.getView().getHeading(),
+    title: controller.getTitle(),
+    h1: controller.getHeading(),
     content: content.html
   });
 

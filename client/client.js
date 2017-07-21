@@ -6,14 +6,13 @@ async function getPage(page, replace = false, noHtml = false) {
   let content = await html.getContent(page, noHtml);
 
   if (!noHtml) {
-    document.title = content.presenter.getView().getTitle();
-    document.getElementById("h1").innerHTML = content.presenter.getView().getHeading();
+    document.title = content.controller.getTitle();
+    document.getElementById("h1").innerHTML = content.controller.getHeading();
     document.getElementById("content").innerHTML = content.html;
   }
 
   // init events
-  await content.presenter.getView().initEvents();
-  await content.presenter.initEvents();
+  await content.controller.initEvents();
 
   if (replace) {
     history.replaceState(page, "", page);

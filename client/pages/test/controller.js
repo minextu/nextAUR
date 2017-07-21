@@ -1,6 +1,6 @@
-const AbstractView = require("../abstractView");
+const AbstractController = require("../abstractController");
 
-class View extends AbstractView {
+class Controller extends AbstractController {
   constructor() {
     super();
 
@@ -12,4 +12,4 @@ class View extends AbstractView {
   }
 }
 
-module.exports = View;
+module.exports = Controller;
