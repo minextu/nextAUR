@@ -566,5 +566,21 @@ class Package {
         WHERE id = ?
       `, [containerId, this.id]);
   }
+
+  toArray() {
+    if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
+
+    return {
+      id: this.id,
+      remoteId: this.remoteId,
+      name: this.name,
+      description: this.description,
+      version: this.version,
+      status: this.status,
+      repoId: this.repoId,
+      depends: this.depends,
+      makeDepends: this.makeDepends,
+    };
+  }
 }
 module.exports = Package;

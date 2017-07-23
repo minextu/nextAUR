@@ -23,4 +23,8 @@ exports.set = function setRoutes(app) {
   require('./package.js').set(app, getLoginUser);
   require('./repo.js').set(app, getLoginUser);
   require('./user.js').set(app);
+
+  app.get("/api/*", (req, res) => {
+    res.send({ error: "ApiNotFound" });
+  });
 };

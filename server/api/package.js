@@ -196,4 +196,34 @@ exports.set = function setRoutes(app, login) {
     res.setHeader('Transfer-Encoding', 'chunked');
     stream.pipe(res);
   });
+
+  /**
+   * @api        {get} /v1/package/:id Get package info
+   * @apiName    getPackage
+   * @apiVersion 0.1.0
+   * @apiGroup   Package
+   *
+   * @apiParam {Number} id  Package id
+   *
+   * @apiError  NotFound    Package couldn't be found
+   *
+   * @apiSuccess {Array} package  Info for this package
+  **/
+  app.get("/api/v1/package/:id", async (req, res) => {
+    let answer = {};
+
+    // get parameters
+    let id = req.params.id;
+
+    let pkg = new Package();
+
+    let [err, packages] = await to(pkg.loadId(id));
+    if (err) {
+      handleError(err, res);
+      return;
+    }
+
+    answer.package = pkg.toArray();
+    res.send(answer);
+  });
 };
