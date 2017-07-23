@@ -25,7 +25,7 @@ function handleError(err, res) {
 
 exports.set = function setRoutes(app) {
   /**
-   * @api        {post} /package/add Add package to repo
+   * @api        {post} /v1/package/add Add package to repo
    * @apiName    addPkg
    * @apiVersion 0.1.0
    * @apiGroup   Package
@@ -74,7 +74,7 @@ exports.set = function setRoutes(app) {
   });
 
   /**
-   * @api        {post} /package/build Build a package
+   * @api        {post} /v1/package/build Build a package
    * @apiName    buildPkg
    * @apiVersion 0.1.0
    * @apiGroup   Package
@@ -114,7 +114,7 @@ exports.set = function setRoutes(app) {
   });
 
   /**
- * @api        {get} /package/list Get all Packages in repo
+ * @api        {get} /v1/package/list Get all Packages in repo
  * @apiName    listPackages
  * @apiVersion 0.1.0
  * @apiGroup   Package

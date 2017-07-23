@@ -6,4 +6,5 @@ exports.set = function setRoutes(app) {
   // set routes for all api groups
   require('./package.js').set(app);
   require('./repo.js').set(app);
+  require('./user.js').set(app);
 };

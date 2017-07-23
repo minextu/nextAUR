@@ -24,7 +24,7 @@ function handleError(err, res) {
 
 exports.set = function setRoutes(app) {
   /**
-   * @api        {post} /repo/create Create Repository
+   * @api        {post} /v1/repo/create Create Repository
    * @apiName    addRepo
    * @apiVersion 0.1.0
    * @apiGroup   Repo
@@ -65,7 +65,7 @@ exports.set = function setRoutes(app) {
   });
 
   /**
-   * @api        {get} /repo/list Get all Repos
+   * @api        {get} /v1/repo/list Get all Repos
    * @apiName    listRepos
    * @apiVersion 0.1.0
    * @apiGroup   Repo

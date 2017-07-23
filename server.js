@@ -1,6 +1,7 @@
 /* server entry point */
 const http = require("http");
 const express = require("express");
+const session = require('express-session');
 const bodyParser = require('body-parser');
 const Config = require(__dirname + '/server/config');
 const clientHtml = require(__dirname + '/client/htmlGenerate.js');
@@ -27,6 +28,15 @@ app.use(express.static("public"));
 
 // enable support for post requests
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// add session support
+// TODO: test proxy support (passenger), use secure cookies if in config
+// TODO: use redis (important!)
+app.use(session({
+  secret: config.get('secret'),
+  resave: false,
+  saveUninitialized: false,
+}));
 
 // set api routes
 var routes = require("./server/api/routes");
