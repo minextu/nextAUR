@@ -1,6 +1,5 @@
 const to = require('await-to-js').default;
-
-let err;
+const Package = require('../package.js');
 
 /**
  * Set appropriate response code and error text
@@ -13,6 +12,7 @@ function handleError(err, res) {
   if (err.name === "NotFound") { res.status(404); }
   else if (err.name === "Exists") { res.status(409); }
   else if (err.name === "Dependency") { res.status(412); }
+  else if (err.name === "NotLoggedIn") { res.status(401); }
   else {
     console.error(err);
     res.status(500);
@@ -23,12 +23,13 @@ function handleError(err, res) {
   res.send(answer);
 }
 
-exports.set = function setRoutes(app) {
+exports.set = function setRoutes(app, login) {
   /**
    * @api        {post} /v1/package/add Add package to repo
    * @apiName    addPkg
    * @apiVersion 0.1.0
    * @apiGroup   Package
+   * @apiUse     Permissions
    *
    * @apiParam {String} name  Package name
    * @apiParam {Number} repo  Repo id
@@ -41,12 +42,18 @@ exports.set = function setRoutes(app) {
   app.post("/api/v1/package/add", async (req, res) => {
     let answer = {};
 
-    const Package = require('../package.js');
     let pkg = new Package();
 
     // get parameters
     let name = req.body.name ? req.body.name : null;
     let repo = req.body.repo ? req.body.repo : null;
+
+    // check if user is logged in
+    let [err] = await to(login(req.session));
+    if (err) {
+      handleError(err, res);
+      return;
+    }
 
     // fetch the package by name
     [err] = await to(pkg.fetchName(name));
@@ -78,6 +85,7 @@ exports.set = function setRoutes(app) {
    * @apiName    buildPkg
    * @apiVersion 0.1.0
    * @apiGroup   Package
+   * @apiUse     Permissions
    *
    * @apiParam {Number} id  Package id
    *
@@ -89,11 +97,17 @@ exports.set = function setRoutes(app) {
   app.post("/api/v1/package/build", async (req, res) => {
     let answer = {};
 
-    const Package = require('../package.js');
     let pkg = new Package();
 
     // get parameters
     let id = req.body.id ? req.body.id : null;
+
+    // check if user is logged in
+    let [err] = await to(login(req.session));
+    if (err) {
+      handleError(err, res);
+      return;
+    }
 
     // load package by id
     [err] = await to(pkg.loadId(id));
@@ -129,11 +143,9 @@ exports.set = function setRoutes(app) {
     // get parameters
     let repo = req.query.repo ? req.query.repo : null;
 
-    const Package = require('../package.js');
     let pkg = new Package();
 
-    let packages;
-    [err, packages] = await to(pkg.getAll(repo));
+    let [err, packages] = await to(pkg.getAll(repo));
     if (err) {
       handleError(err, res);
       return;

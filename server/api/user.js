@@ -1,6 +1,4 @@
-const to = require('await-to-js').default;
-
-let err;
+const User = require('../user.js');
 
 /**
  * Set appropriate response code and error text
@@ -35,9 +33,7 @@ exports.set = function setRoutes(app) {
   app.get("/api/v1/user/status", async (req, res) => {
     let answer = {};
 
-    const User = require('../user.js');
     let user = new User();
-
     try {
       await user.loadSession(req.session);
       answer.status = true;
@@ -71,9 +67,7 @@ exports.set = function setRoutes(app) {
     let nick = req.body.nickname ? req.body.nickname : null;
     let password = req.body.password ? req.body.password : null;
 
-    const User = require('../user.js');
     let user = new User();
-
     try {
       await user.loadNick(nick);
       await user.checkPassword(password);
@@ -101,9 +95,7 @@ exports.set = function setRoutes(app) {
   app.post("/api/v1/user/logout", async (req, res) => {
     let answer = {};
 
-    const User = require('../user.js');
     let user = new User();
-
     try {
       await user.loadSession(req.session);
       await user.logout(req.session);

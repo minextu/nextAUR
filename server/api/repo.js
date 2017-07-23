@@ -1,6 +1,5 @@
 const to = require('await-to-js').default;
-
-let err;
+const Repo = require('../repo.js');
 
 /**
  * Set appropriate response code and error text
@@ -12,6 +11,7 @@ function handleError(err, res) {
 
   if (err.name === "Exists") { res.status(409); }
   else if (err.name === "InvalidCharacters") { res.status(412); }
+  else if (err.name === "NotLoggedIn") { res.status(401); }
   else {
     console.error(err);
     res.status(500);
@@ -22,12 +22,13 @@ function handleError(err, res) {
   res.send(answer);
 }
 
-exports.set = function setRoutes(app) {
+exports.set = function setRoutes(app, login) {
   /**
    * @api        {post} /v1/repo/create Create Repository
    * @apiName    addRepo
    * @apiVersion 0.1.0
    * @apiGroup   Repo
+   * @apiUse     Permissions
    *
    * @apiParam {String} name  Repo name
    *
@@ -39,11 +40,17 @@ exports.set = function setRoutes(app) {
   app.post("/api/v1/repo/create", async (req, res) => {
     let answer = {};
 
-    const Repo = require('../repo.js');
     let repo = new Repo();
 
     // get parameters
     let name = req.body.name ? req.body.name : null;
+
+    // check if user is logged in
+    let [err] = await to(login(req.session));
+    if (err) {
+      handleError(err, res);
+      return;
+    }
 
     try {
       repo.setName(name);
@@ -75,11 +82,9 @@ exports.set = function setRoutes(app) {
   app.get("/api/v1/repo/list", async (req, res) => {
     let answer = {};
 
-    const Repo = require('../repo.js');
     let repo = new Repo();
 
-    let repos;
-    [err, repos] = await to(repo.getAll());
+    let [err, repos] = await to(repo.getAll());
     if (err) {
       handleError(err, res);
       return;

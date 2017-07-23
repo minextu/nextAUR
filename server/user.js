@@ -171,6 +171,8 @@ class User {
     this.email = user.email;
     this.hash = user.hash;
     this.rank = user.rank;
+
+    return this;
   }
 
   /**

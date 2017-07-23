@@ -1,7 +1,7 @@
 {
-  "name": "nextaur",
+  "name": "nextAUR API",
+  "title": "nextAUR API",
   "version": "0.1.0",
-  "description": "Api for nexaur",
-  "title": "nextaur",
+  "description": "API for nextAUR",
   "sampleUrl": "/api"
 }
