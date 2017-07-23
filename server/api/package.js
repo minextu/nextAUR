@@ -159,4 +159,41 @@ exports.set = function setRoutes(app, login) {
 
     res.send(answer);
   });
+
+  /**
+ * @api        {get} /v1/package/getLogs Get build logs
+ * @apiName    getPackageLogs
+ * @apiVersion 0.1.0
+ * @apiGroup   Package
+ *
+ * @apiParam {Number} id  Package id
+ *
+ * @apiSuccess {String}  A log stream
+ **/
+  app.get("/api/v1/package/getLogs", async (req, res) => {
+    let answer = {};
+
+    // get parameters
+    let id = req.query.id ? req.query.id : null;
+
+    let pkg = new Package();
+
+    let [err] = await to(pkg.loadId(id));
+    if (err) {
+      handleError(err, res);
+      return;
+    }
+
+    let stream = await pkg.getLogs(res);
+    stream.on('error', () => {
+      res.send("No logs available");
+      return;
+    });
+
+    // setup stream
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Connection', 'Transfer-Encoding');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    stream.pipe(res);
+  });
 };

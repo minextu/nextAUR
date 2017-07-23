@@ -12,6 +12,8 @@ module.exports = {
         version VARCHAR(100) NOT NULL ,
         downloadUrl VARCHAR(1000) NOT NULL ,
         repoId INT(255) UNSIGNED NOT NULL ,
+        status VARCHAR(10) NULL ,
+        containerId VARCHAR(100) NULL ,
         PRIMARY KEY (id)
       )`);
   },

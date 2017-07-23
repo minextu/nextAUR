@@ -32,6 +32,10 @@ class Docker {
     return this.container.start();
   }
 
+  setContainer(id) {
+    this.container = this.docker.getContainer(id);
+  }
+
   /**
    * Copy the given tar stream to container in /srv/http
    * @param  {Stream}  dependencyStream Tar stream containing dependency packages

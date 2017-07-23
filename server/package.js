@@ -86,31 +86,7 @@ class Package {
 
     // set info
     let info = packages[0][0];
-    this.remoteId = info.remoteId;
-    this.id = info.id;
-    this.name = info.name;
-    this.description = info.description;
-    this.version = info.version;
-    this.downloadUrl = info.downloadUrl;
-    await this.setRepo(info.repoId);
-
-    // set depends and makedepends
-    this.depends = [];
-    this.makeDepends = [];
-    if (depends[0].length === 0) {
-      return;
-    }
-
-    // loop through all dependencies
-    for (let id in depends[0]) {
-      let depend = depends[0][id];
-      if (depend.type === 0) {
-        this.depends[this.depends.length] = depend.name;
-      }
-      else {
-        this.makeDepends[this.makeDepends.length] = depend.name;
-      }
-    }
+    await this._setInfo(info, depends);
   }
 
   /**
@@ -138,12 +114,18 @@ class Package {
 
     // set info
     let info = packages[0][0];
+    await this._setInfo(info, depends);
+  }
+
+  async _setInfo(info, depends) {
     this.remoteId = info.remoteId;
     this.id = info.id;
     this.name = info.name;
     this.description = info.description;
     this.version = info.version;
     this.downloadUrl = info.downloadUrl;
+    this.status = info.status;
+    this.containerId = info.containerId;
     await this.setRepo(info.repoId);
 
     // set depends and makedepends
@@ -270,6 +252,9 @@ class Package {
     if (this.name === undefined) {
       throw new Error("Package has to fetched first!");
     }
+    if (this.status === "building") {
+      throw new Error("Package is already being build");
+    }
 
     // check if all dependencies exist (recursive)
     let dependencies = await this.checkPackages(this.depends.concat(this.makeDepends), true, true);
@@ -304,7 +289,31 @@ class Package {
       entries: aurDependencies
     });
 
-    this._buildDocker(dependencyStream);
+    await this._buildDocker(dependencyStream);
+  }
+
+  async getLogs() {
+    if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
+
+    // get live logs
+    if (this.containerId) {
+      let docker = new Docker();
+      docker.setContainer(this.containerId);
+
+      let stream = await docker.container.logs({
+        stream: true,
+        follow: true,
+        stdout: true,
+        stderr: true
+      });
+
+      return stream;
+    }
+    // get log file
+    else {
+      let rs = fs.createReadStream(`${this.repo.getPath()}/${this.name}-build.log`);
+      return rs;
+    }
   }
 
   /**
@@ -408,8 +417,8 @@ class Package {
     // set buildscript
     let buildScript = `
       # update system
-      pacman -Syu --noconfirm
-      pacman -S wget --noconfirm
+      pacman -Syu --noconfirm --noprogressbar
+      pacman -S wget --noconfirm --noprogressbar
 
       # add depend repo
       cd /srv/http
@@ -419,17 +428,17 @@ class Package {
       fi
 
       # install depends and make depends
-      pacman -Sy --noconfirm --needed \
+      pacman -Sy --noconfirm --needed --noprogressbar \
         ${this.depends.join(' ')} ${this.makeDepends.join(' ')}
 
       # run the build script as unprivileged user
       useradd -m build
       su build -s /bin/bash -c "
-        mkdir ~/out
-        cd ~/
-        wget https://aur.archlinux.org${this.downloadUrl}
-        tar -xvf '${this.name}.tar.gz' && cd '${this.name}'
-        makepkg
+        mkdir ~/out                                           &&\
+        cd ~/                                                 &&\
+        wget https://aur.archlinux.org${this.downloadUrl}     &&\
+        tar -xvf '${this.name}.tar.gz' && cd '${this.name}'   &&\
+        makepkg                                               &&\
         cp *.pkg.tar.xz ~/out/
       "`;
 
@@ -444,17 +453,29 @@ class Package {
       // run container
       await docker.start();
       console.log('container started');
+      this._setStatus("building");
+      this._setContainerId(docker.container.id);
 
-      // show build log in console
-      // TODO: only show when in Debug mode
+      // save build log to file
+      let writeStream = fs.createWriteStream(`${this.repo.getPath()}/${this.name}-build.log`);
       let stream = await docker.container.attach({ stream: true, stdout: true, stderr: true });
-      stream.pipe(process.stdout);
+      stream.pipe(writeStream);
 
-      // wait for container to finish
+      this._dockerCleanup(docker);
+    }
+    catch (err) {
+      this._setStatus("error");
+      console.error(err);
+    }
+  }
+
+  async _dockerCleanup(docker) {
+    try {
+    // wait for container to finish
       await docker.container.wait();
 
       // copy created package
-      stream = await docker.container.getArchive({ path: `/home/build/out/.` });
+      let stream = await docker.container.getArchive({ path: `/home/build/out/.` });
       let archive = await new Promise((resolve, reject) => {
         temp.open(`nextaur_${this.name}`, async (err, info) => {
           if (err) {
@@ -469,16 +490,26 @@ class Package {
         });
       });
 
+      let data = await docker.container.inspect();
+      console.log(`Exit code: ${data.State.ExitCode}`);
+
+      if (data.State.ExitCode !== 0) { throw new Error(`Container exited with code ${data.State.ExitCode}`); }
+
       // extract package file
       this._extractPackage(archive);
 
-      // remove container
-      await docker.container.remove();
-      console.log('container removed');
+      this._setStatus("done");
     }
     catch (err) {
+      this._setStatus("error");
       console.error(err);
     }
+
+    // remove container after 5 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await docker.container.remove();
+    console.log('container removed');
+    this._setContainerId(null);
   }
 
   /**
@@ -516,6 +547,24 @@ class Package {
       if (stderr) { console.error(stderr); }
       if (stdout) { console.log(stdout); }
     });
+  }
+
+  async _setStatus(status) {
+    if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
+
+    return this.database.query(`
+      UPDATE packages SET status = ?
+        WHERE id = ?
+      `, [status, this.id]);
+  }
+
+  async _setContainerId(containerId) {
+    if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
+
+    return this.database.query(`
+      UPDATE packages SET containerId = ?
+        WHERE id = ?
+      `, [containerId, this.id]);
   }
 }
 module.exports = Package;
