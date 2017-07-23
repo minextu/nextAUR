@@ -510,7 +510,7 @@ class Package {
     // run repo-add to update repo database
     exec(`
       cd "${this.repo.getPath()}"
-      repo-add -R ${this.repo.getName()}.db.tar.xz ${file}
+      ${__dirname}/../utils/repo-add -R ${this.repo.getName()}.db.tar.xz ${file}
     `, (error, stdout, stderr) => {
       if (error) { console.error(error); }
       if (stderr) { console.error(stderr); }
