@@ -99,6 +99,7 @@ exports.set = function setRoutes(app) {
     try {
       await user.loadSession(req.session);
       await user.logout(req.session);
+      answer.success = true;
     }
     catch (err) {
       handleError(err, res);

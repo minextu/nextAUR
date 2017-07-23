@@ -10,15 +10,9 @@ class Model extends AbstractModel {
   }
 
   async addPackage(name) {
-    let data = new URLSearchParams();
-    data.append('name', name);
-    data.append('repo', this.repo);
-
-    return fetch('/api/v1/package/add', {
-      method: 'POST',
-      body: data
+    return this.fetch('/api/v1/package/add', 'POST', {
+      name: name, repo: this.repo
     })
-      .then(response => response.json())
       .catch(err => {
         console.error(err);
       });

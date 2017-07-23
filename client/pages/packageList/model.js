@@ -25,14 +25,9 @@ class Model extends AbstractModel {
   }
 
   async build(id) {
-    let data = new URLSearchParams();
-    data.append('id', id);
-
-    return fetch('/api/v1/package/build', {
-      method: 'POST',
-      body: data
+    return this.fetch('/api/v1/package/build', 'POST', {
+      id: id
     })
-      .then(response => response.json())
       .catch(err => {
         console.error(err);
       });

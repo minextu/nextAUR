@@ -43,7 +43,7 @@ class Controller extends AbstractController {
       this.showError(new Error(answer.errorText));
     }
     else {
-      this.hideBuild(id);
+      this.hideBuild(packageId);
     }
   }
 

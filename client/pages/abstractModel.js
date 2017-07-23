@@ -27,6 +27,7 @@ class Model {
     else {
       options = {
         method: method,
+        credentials: 'include',
         body: data
       };
     }
