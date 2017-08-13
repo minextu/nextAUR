@@ -1,10 +1,5 @@
 {
+  "enviroment": "production",
   "port": "8080",
-  "database": {
-    "host" : "localhost",
-    "user" : "",
-    "password" : "",
-    "database" : ""
-  },
   "secret": ""
 }

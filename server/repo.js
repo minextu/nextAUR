@@ -1,16 +1,12 @@
 const error = require('./error.js');
 const to = require('await-to-js').default;
-const Database = require('./database');
+const db = require('./database');
 const fs = require('fs');
 
 const repoTarget = __dirname + `/../public/`;
 let err;
 
 class Repo {
-  constructor() {
-    this.database = new Database();
-  }
-
   /**
    * Load repo by id
    * @param  {Number} id Id of repo
@@ -19,16 +15,16 @@ class Repo {
   async loadId(id) {
     // get repo info
     let repos;
-    [err, repos] = await to(this.database.query(`
-      SELECT * from repos WHERE id = ?
-    `, [id]));
+    [err, repos] = await to(
+      db('repos').where('id', id)
+    );
     if (err) { console.error(err); }
-    if (repos[0].length === 0) {
+    if (repos.length === 0) {
       throw new error.NotFound(`repo with id '${id}' not found in database`);
     }
 
     // set info
-    let info = repos[0][0];
+    let info = repos[0];
     this.id = info.id;
     this.name = info.name;
   }
@@ -41,16 +37,16 @@ class Repo {
   async loadName(name) {
     // get repo info
     let repos;
-    [err, repos] = await to(this.database.query(`
-      SELECT * from repos WHERE name = ?
-    `, [name]));
+    [err, repos] = await to(
+      db('repos').where('name', name)
+    );
     if (err) { console.error(err); }
-    if (repos[0].length === 0) {
+    if (repos.length === 0) {
       throw new error.NotFound(`repo '${name}' not found in database`);
     }
 
     // set info
-    let info = repos[0][0];
+    let info = repos[0];
     this.id = info.id;
     this.name = info.name;
   }
@@ -64,13 +60,13 @@ class Repo {
 
     // get repo info
     let repos;
-    [err, repos] = await to(this.database.query(`
-      SELECT id from repos
-    `));
+    [err, repos] = await to(
+      db.select('id').from('repos')
+    );
     if (err) { console.error(err); }
 
-    for (let index in repos[0]) {
-      let id = repos[0][index].id;
+    for (let index in repos) {
+      let id = repos[index].id;
       let repo = new Repo();
 
       [err] = await to(repo.loadId(id));
@@ -129,10 +125,11 @@ class Repo {
     }
 
     // save repo to database
-    [err] = await to(this.database.query(`
-      INSERT INTO repos (name)
-      VALUES (?)
-    `, [this.name]));
+    [err] = await to(
+      db('repos').insert({
+        name: this.name
+      })
+    );
 
     if (err) { throw err; }
 

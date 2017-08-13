@@ -1,6 +1,6 @@
 const error = require('./error.js');
 const to = require('await-to-js').default;
-const Database = require('./database');
+const db = require('./database');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
@@ -8,10 +8,6 @@ const saltRounds = 10;
  * Can Create and Load Info about a User using a Database
  */
 class User {
-  constructor() {
-    this.database = new Database();
-  }
-
   getId() {
     if (this.id === undefined) {
       throw new Error("User has to be loaded first.");
@@ -45,7 +41,7 @@ class User {
 
     // check if nick does already exist
     let [err] = await to(testUser.loadNick(nick));
-    if (err === false) {
+    if (!err) {
       throw new error.InvalidNickname("Nickname does already exist.");
     }
     else if (err.name !== "UserNotFound") {
@@ -92,16 +88,15 @@ class User {
    * @return {Promise}
    */
   async loadNick(nick) {
-    let [err, userData] = await to(this.database.query(`
-        SELECT * from users WHERE nick = ?
-      `, [nick]));
-
+    let [err, userData] = await to(
+      db('users').where('nick', nick)
+    );
     if (err) { console.error(err); }
-    if (userData[0].length === 0) {
+    if (userData.length === 0) {
       throw new error.UserNotFound(`User '${nick}' not found`);
     }
 
-    return this._load(userData[0][0]);
+    return this._load(userData[0]);
   }
   /**
    * Load User Info using the unique Id
@@ -112,15 +107,15 @@ class User {
    * @return {Promise}
    */
   async loadId(id) {
-    let [err, userData] = await to(this.database.query(`
-          SELECT * from users WHERE id = ?
-        `, [id]));
+    let [err, userData] = await to(
+      db('users').where('id', id)
+    );
 
     if (err) { console.error(err); }
-    if (userData[0].length === 0) {
+    if (userData.length === 0) {
       throw new error.UserNotFound(`User id '${id}' not found`);
     }
-    return this._load(userData[0][0]);
+    return this._load(userData[0]);
   }
 
   /**
@@ -213,10 +208,12 @@ class User {
       throw new Error("Password has to set via setPassword first.");
     }
 
-    let [err, result] = await to(this.database.query(`
-          INSERT INTO users (nick, hash)
-          VALUES (?, ?)
-        `, [this.nick, this.hash]));
+    let [err, result] = await to(
+      db('users').insert({
+        nick: this.nick,
+        hash: this.hash
+      })
+    );
 
     if (err) { throw err; }
 

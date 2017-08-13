@@ -1,7 +1,7 @@
 const error = require('./error.js');
 const rp = require('request-promise');
 const to = require('await-to-js').default;
-const Database = require('./database');
+const db = require('./database');
 const Docker = require('./docker');
 const Repo = require('./repo');
 const fs = require('fs');
@@ -18,10 +18,6 @@ const pacmanApiUrl = "https://www.archlinux.org/packages/search/json/";
 let err;
 
 class Package {
-  constructor() {
-    this.database = new Database();
-  }
-
   getRemoteId() {
     return this.remoteId;
   }
@@ -71,23 +67,22 @@ class Package {
   async loadName(name, repoId) {
     // get package info
     let packages;
-    [err, packages] = await to(this.database.query(`
-      SELECT * from packages WHERE name = ? AND repoId = ?
-    `, [name, repoId]));
+    [err, packages] = await to(
+      db('packages').where({
+        name: name,
+        repoId: repoId
+      })
+    );
     if (err) { console.error(err); }
-    if (packages[0].length === 0) {
+    if (packages.length === 0) {
       throw new error.NotFound(`pkg '${name}' not found in repo id ${repoId}`);
     }
 
     // get package depends
-    let depends;
-    [err, depends] = await to(this.database.query(`
-      SELECT * from depends WHERE packageId = ?
-    `, [packages[0][0].id]));
-    if (err) { console.error(err); }
+    let depends = await this._loadDepends(packages[0]);
 
     // set info
-    let info = packages[0][0];
+    let info = packages[0];
     await this._setInfo(info, depends);
   }
 
@@ -99,24 +94,31 @@ class Package {
   async loadId(id) {
     // get package info
     let packages;
-    [err, packages] = await to(this.database.query(`
-      SELECT * from packages WHERE id = ?
-    `, [id]));
+    [err, packages] = await to(
+      db('packages').where('id', id)
+    );
     if (err) { console.error(err); }
-    if (packages[0].length === 0) {
+    if (packages.length === 0) {
       throw new error.NotFound(`pkg with id '${id}' not found in database`);
     }
 
     // get package depends
-    let depends;
-    [err, depends] = await to(this.database.query(`
-      SELECT * from depends WHERE packageId = ?
-    `, [packages[0][0].id]));
-    if (err) { console.error(err); }
+    let depends = await this._loadDepends(packages[0]);
 
     // set info
-    let info = packages[0][0];
+    let info = packages[0];
     await this._setInfo(info, depends);
+  }
+
+  async _loadDepends(pkg) {
+    let depends;
+    [err, depends] = await to(
+      db('depends').where('packageId', pkg.id)
+    );
+
+    if (err) { console.error(err); }
+
+    return depends;
   }
 
   async _setInfo(info, depends) {
@@ -133,13 +135,13 @@ class Package {
     // set depends and makedepends
     this.depends = [];
     this.makeDepends = [];
-    if (depends[0].length === 0) {
+    if (depends.length === 0) {
       return;
     }
 
     // loop through all dependencies
-    for (let id in depends[0]) {
-      let depend = depends[0][id];
+    for (let id in depends) {
+      let depend = depends[id];
       if (depend.type === 0) {
         this.depends[this.depends.length] = depend.name;
       }
@@ -194,13 +196,15 @@ class Package {
 
     // get repo info
     let pkgs;
-    [err, pkgs] = await to(this.database.query(`
-      SELECT id from packages WHERE repoId = ?
-    `, [repo]));
+    [err, pkgs] = await to(
+      db.select('id')
+        .from('packages')
+        .where('repoId', repo)
+    );
     if (err) { console.error(err); }
 
-    for (let index in pkgs[0]) {
-      let id = pkgs[0][index].id;
+    for (let index in pkgs) {
+      let id = pkgs[index].id;
       let pkg = new Package();
 
       [err] = await to(pkg.loadId(id));
@@ -235,14 +239,18 @@ class Package {
     }
 
     // save package to database
-    let result = await this.database.query(`
-      INSERT INTO packages (remoteId, name, description, version, downloadUrl, repoId)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [this.remoteId, this.name, this.description, this.version, this.downloadUrl, this.repoId]);
+    let id = await db('packages').insert({
+      remoteId: this.remoteId,
+      name: this.name,
+      description: this.description,
+      version: this.version,
+      downloadUrl: this.downloadUrl,
+      repoId: this.repoId
+    }).returning('id');
     // save depends
-    [err] = await to(this._saveDependencies(this.depends, result[0].insertId, 0));
+    [err] = await to(this._saveDependencies(this.depends, id, 0));
     if (err) { throw err; }
-    [err] = await to(this._saveDependencies(this.makeDepends, result[0].insertId, 1));
+    [err] = await to(this._saveDependencies(this.makeDepends, id, 1));
     if (err) { throw err; }
   }
 
@@ -410,10 +418,11 @@ class Package {
    */
   async _saveDependencies(depends, packageId, type) {
     for (let depend of depends) {
-      await this.database.query(`
-  			INSERT INTO depends (name, packageId, type)
-  				VALUES (?, ?, ?)
-  			`, [depend, packageId, type]);
+      await db('depends').insert({
+        name: depend,
+        packageId: Number(packageId),
+        type: type
+      });
     }
   }
 
@@ -565,19 +574,21 @@ class Package {
   async _setStatus(status) {
     if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
 
-    return this.database.query(`
-      UPDATE packages SET status = ?
-        WHERE id = ?
-      `, [status, this.id]);
+    return db('packages')
+      .where('id', this.id)
+      .update({
+        status: status
+      });
   }
 
   async _setContainerId(containerId) {
     if (this.id === undefined) { throw new Error("Package has to be loaded first"); }
 
-    return this.database.query(`
-      UPDATE packages SET containerId = ?
-        WHERE id = ?
-      `, [containerId, this.id]);
+    return db('packages')
+      .where('id', this.id)
+      .update({
+        containerId: containerId
+      });
   }
 
   toArray() {

@@ -6,4 +6,5 @@ data/*
 coverage/
 config/config.json
 config/config.unitTest.json
-config/migrations.json
+production.sqlite3
+dev.sqlite3

@@ -8,9 +8,7 @@ const promptly = require('promptly');
 const columnify = require('columnify');
 const Migrator = require('./server/migrator');
 const User = require('./server/user');
-const Database = require('./server/database');
-
-let database = new Database();
+const db = require('./server/database');
 
 const dummyMigration = `module.exports = {
 
@@ -57,7 +55,7 @@ program
       console.log(`Error: ${err.message}`);
     }
 
-    database.close();
+    db.destroy();
   });
 
 program
