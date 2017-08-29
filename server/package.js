@@ -9,6 +9,8 @@ const tar = require('tar-fs');
 const exec = require('child_process').exec;
 const glob = require("glob");
 const temp = require("temp").track();
+const url = require("url");
+const path = require("path");
 
 const aurApiUrl = "https://aur.archlinux.org/rpc/";
 const pacmanApiUrl = "https://www.archlinux.org/packages/search/json/";
@@ -421,6 +423,9 @@ class Package {
    * @return {Promise}
    */
   async _buildDocker(dependencyStream) {
+    let downloadFileName = url.parse(this.downloadUrl);
+    downloadFileName = path.basename(downloadFileName.pathname);
+
     // set buildscript
     let buildScript = `
       # update system
@@ -444,7 +449,8 @@ class Package {
         mkdir ~/out                                           &&\
         cd ~/                                                 &&\
         wget https://aur.archlinux.org${this.downloadUrl}     &&\
-        tar -xvf '${this.name}.tar.gz' && cd '${this.name}'   &&\
+        tar -xvf '${downloadFileName}'         &&\
+        cd '${downloadFileName.replace('.tar.gz', '')}'               &&\
         makepkg                                               &&\
         cp *.pkg.tar.xz ~/out/
       "`;
