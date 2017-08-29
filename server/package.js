@@ -323,7 +323,7 @@ class Package {
    * @param  {Boolean} recursive  Recursivly check all dependencies
    * @return {Promise}
    */
-  async checkPackages(packages, throwError = false, recursive = false) {
+  async checkPackages(packages, throwError = false, recursive = false, all = []) {
     let status = {
       packages: [],
       allAvailable: true
@@ -339,16 +339,20 @@ class Package {
       // TODO: check version number
       let pkg = packages[index].replace(/>.*/, '').replace(/<.*/, '').replace(/=.*/, '');
 
+      // skip, if this packages has already been added previously
+      if (all.indexOf(pkg) !== -1) { continue; }
+
       // check if this is an aur package and it is in our database
       // TODO: check build status
       let testPkg = new Package();
       [err] = await to(testPkg.loadName(pkg, this.repoId));
       if (err && err.name !== "NotFound") { throw err; }
       else if (!err) {
+        all[all.length] = pkg;
         status.packages[status.packages.length] = { name: pkg, available: true, source: "aur" };
 
         // add dependencies to dependency list, used for recursive checks
-        dependencies[dependencies.length] = testPkg.dependencies;
+        dependencies = dependencies.concat(testPkg.getDepends().concat(testPkg.getMakeDepends()));
 
         continue;
       }
@@ -384,7 +388,10 @@ class Package {
     }
 
     if (recursive) {
-      let statusRecursive = this.checkPackages(dependencies, throwError, dependencies);
+      // remove duplicates
+      dependencies = dependencies.filter((item, pos) => { return dependencies.indexOf(item) === pos; });
+
+      let statusRecursive = await this.checkPackages(dependencies, throwError, dependencies, all);
       status.packages = status.packages.concat(statusRecursive.packages);
       status.allAvailable = statusRecursive.allAvailable && status.allAvailable;
     }
