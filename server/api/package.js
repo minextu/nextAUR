@@ -171,8 +171,6 @@ exports.set = function setRoutes(app, login) {
  * @apiSuccess {String}  A log stream
  **/
   app.get("/api/v1/package/getLogs", async (req, res) => {
-    let answer = {};
-
     // get parameters
     let id = req.query.id ? req.query.id : null;
 
@@ -217,7 +215,7 @@ exports.set = function setRoutes(app, login) {
 
     let pkg = new Package();
 
-    let [err, packages] = await to(pkg.loadId(id));
+    let [err] = await to(pkg.loadId(id));
     if (err) {
       handleError(err, res);
       return;

@@ -2,33 +2,10 @@
 
 /* command line interface for nextaur */
 
-const fs = require('fs');
 const program = require('commander');
 const promptly = require('promptly');
-const columnify = require('columnify');
-const Migrator = require('./server/migrator');
 const User = require('./server/user');
 const db = require('./server/database');
-
-const dummyMigration = `module.exports = {
-
-  // upgrade
-  up: database => {
-    return new Promise((resolve, reject) => {
-    // Describe how to achieve the task.
-    // Call resolve/reject at some point.
-    });
-  },
-
-  // downgrade
-  down: database => {
-    return new Promise((resolve, reject) => {
-    // Describe how to revert the task.
-    // Call resolve/reject at some point.
-    });
-  }
-};
-`;
 
 let executed = false;
 
@@ -56,138 +33,6 @@ program
     }
 
     db.destroy();
-  });
-
-program
-  .command('status')
-  .alias('s')
-  .description('Show current migration status')
-  .action(async () => {
-    executed = true;
-
-    console.log(`STATUS`);
-    let migrator = new Migrator(database);
-    let pending = await migrator.getPending();
-
-    if (pending.length === 0) {
-      console.log(`Everything up to date.`);
-    }
-    else {
-      console.log(`${pending.length} pending migrations. Please run "./nac upgrade".`);
-    }
-  });
-
-program
-  .command('upgrade')
-  .alias('u')
-  .description('Apply all pending migrations')
-  .action(async () => {
-    executed = true;
-
-    let migrator = new Migrator(database);
-    try {
-      let status = await migrator.upgrade();
-      console.log(`Successfully upgraded ${status.length} Migrations.`);
-    }
-    catch (err) {
-      console.log(`Error: ${err.message}`);
-    }
-
-    database.close();
-  });
-
-program
-  .command('downgrade <file>')
-  .alias('d')
-  .description('Downgrade the given migration')
-  .action(async (file) => {
-    executed = true;
-
-    let migrator = new Migrator(database);
-    try {
-      await migrator.downgrade(file);
-      console.log(`Successfully downgraded "${file}".`);
-    }
-    catch (err) {
-      console.log(`Error: ${err.message}`);
-    }
-
-    database.close();
-  });
-
-program
-  .command('create-migration <name>')
-  .alias('cm')
-  .description('Create a new empty migration file')
-  .action(name => {
-    executed = true;
-
-    // construct iso time in format: yyyymmddhhmm
-    let dateTime = new Date().toISOString().replace(/T/, '').replace(/\..+/, '').replace(/-/g, '').replace(/:[^:]+$/, '').replace(/:/g, '');
-    let filename = `migrations/${dateTime}-${name}.js`;
-
-    try {
-      // save dummy migration
-      fs.writeFileSync(filename, dummyMigration);
-      console.log(`Successfully created '${filename}'`);
-    }
-    catch (err) {
-      console.log(`Error: ${err.message}.\nMake sure the folder does exist.`);
-    }
-  });
-
-let optionExecuted = false;
-let optionPending = false;
-program
-  .command('list-migrations')
-  .alias('lm')
-  .description('List all migrations')
-  .option('-e, --executed', 'Only list executed migrations', () => { optionExecuted = true; })
-  .option('-p, --pending', 'Only list pending migrations', () => { optionPending = true; })
-  .action(async () => {
-    executed = true;
-
-    let migrator = new Migrator(database);
-    let pendingMigrations = await migrator.getPending();
-    let executedMigrations = await migrator.getExecuted();
-
-    let migrations;
-    if (optionExecuted) {
-      console.log("Executed Migrations:");
-      migrations = executedMigrations;
-    }
-    else if (optionPending) {
-      console.log("Pending Migrations:");
-      migrations = pendingMigrations;
-    }
-    else {
-      console.log("All Migrations:");
-
-      migrations = pendingMigrations.concat(executedMigrations);
-      migrations.sort((a, b) => {
-        return parseInt(a.file) - parseInt(b.file);
-      });
-    }
-
-    let data = [];
-    migrations.forEach(migration => {
-      // check if migration was already executed
-      let status = pendingMigrations.some(pendingMigration => {
-        return pendingMigration.file === migration.file;
-      }) ? "Pending" : "Executed";
-
-      data[data.length] = {
-        file: migration.file,
-        status: status,
-      };
-    });
-
-    if (migrations.length > 0) {
-      console.log(columnify(data));
-    }
-    else {
-      console.log('No Migrations found');
-    }
   });
 
 program
