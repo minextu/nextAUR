@@ -1,22 +1,17 @@
-const configDefaults = {
-  port: 8080,
-  database: {}
-};
-
 class Config {
   constructor(file = __dirname + '/../config/config.json') {
     this.file = file;
 
     // init nconf
-    this.nconf = require('nconf');
-    // consider command line arguments and enviroment variables
-    this.nconf.argv().env();
-    // set file
-    this.nconf.file({
-      file: this.file
-    });
-    // set defaults
-    this.nconf.defaults(configDefaults);
+    this.nconf = require('nconf')
+      // set file
+      .file({
+        file: this.file
+      })
+      // set default file
+      .file('defaults', __dirname + '/../config/config.sample.json')
+      // consider command line arguments and enviroment variables
+      .argv().env();
   }
 
   get(config) {
