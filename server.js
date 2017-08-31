@@ -3,6 +3,8 @@ const http = require("http");
 const express = require("express");
 const session = require('express-session');
 const bodyParser = require('body-parser');
+const db = require(__dirname + '/server/database');
+const KnexSessionStore = require('connect-session-knex')(session);
 const Config = require(__dirname + '/server/config');
 const clientHtml = require(__dirname + '/client/htmlGenerate.js');
 
@@ -30,12 +32,17 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // add session support
+const store = new KnexSessionStore({
+  knex: db,
+  tablename: 'sessions'
+});
+
 // TODO: test proxy support (passenger), use secure cookies if in config
-// TODO: use redis (important!)
 app.use(session({
   secret: config.get('secret'),
   resave: false,
   saveUninitialized: false,
+  store: store
 }));
 
 // set api routes
